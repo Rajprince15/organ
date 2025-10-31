@@ -15,10 +15,25 @@ from auth_routes import router as auth_router
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# MongoDB connection
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+# MongoDB connection with fallback to mock database
+USE_MOCK_DB = os.environ.get('USE_MOCK_DB', 'true').lower() == 'true'
+
+if USE_MOCK_DB:
+    from mock_db import MockMongoClient, seed_mock_data
+    
+    logger = logging.getLogger(__name__)
+    logger.info("🔧 Using MOCK DATABASE (MongoDB not required)")
+    
+    client = MockMongoClient("mock://localhost:27017")
+    db = client[os.environ.get('DB_NAME', 'test_database')]
+    
+    # Seed mock data
+    seed_mock_data(db)
+else:
+    mongo_url = os.environ['MONGO_URL']
+    client = AsyncIOMotorClient(mongo_url)
+    db = client[os.environ.get('DB_NAME', 'test_database')]
+    logging.getLogger(__name__).info("🗄️  Connected to MongoDB")
 
 # Create the main app without a prefix
 app = FastAPI()
@@ -50,9 +65,9 @@ async def root():
 
 @api_router.post("/status", response_model=StatusCheck)
 async def create_status_check(input: StatusCheckCreate):
-    status_dict = input.dict()
+    status_dict = input.model_dump()
     status_obj = StatusCheck(**status_dict)
-    _ = await db.status_checks.insert_one(status_obj.dict())
+    _ = await db.status_checks.insert_one(status_obj.model_dump())
     return status_obj
 
 @api_router.get("/status", response_model=List[StatusCheck])

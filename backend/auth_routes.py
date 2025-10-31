@@ -80,7 +80,7 @@ async def register(user_data: UserRegister, request: Request):
         mobile_verified=True  # Auto-verify for demo
     )
     
-    await db.users.insert_one(user.dict())
+    await db.users.insert_one(user.model_dump())
     
     # Create access token
     access_token = create_access_token(
