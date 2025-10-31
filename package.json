@@ -1,0 +1,19 @@
+{
+  "name": "fullstack-app",
+  "version": "1.0.0",
+  "description": "Full-stack application with React frontend and FastAPI backend",
+  "private": true,
+  "scripts": {
+    "start": "concurrently --names \"BACKEND,FRONTEND\" --prefix-colors \"blue,green\" --kill-others \"yarn start:backend\" \"yarn start:frontend\"",
+    "start:backend": "cd backend && uvicorn server:app --host 0.0.0.0 --port 8001 --reload",
+    "start:frontend": "cd frontend && yarn dev",
+    "install:all": "yarn install && cd frontend && yarn install && cd ../backend && pip install -r requirements.txt",
+    "dev": "yarn start",
+    "stop:services": "sudo supervisorctl stop backend frontend",
+    "start:services": "sudo supervisorctl start backend frontend",
+    "restart:services": "sudo supervisorctl restart backend frontend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
