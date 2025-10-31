@@ -78,3 +78,10 @@ agenthub/agents/youtube/db
 
 # Mobile development
 android-sdk/ 
+# Ignore node modules in all folders
+node_modules/
+frontend/node_modules/
+
+# ✅ Explicitly allow .env files
+!.env
+!.env.*
