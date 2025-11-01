@@ -9,7 +9,7 @@ import Index from "./pages/Index";
 import DonorRegistration from "./pages/DonorRegistration";
 import DonorDashboard from "./pages/DonorDashboard";
 import HospitalDashboard from "./pages/HospitalDashboard";
-import DonorListPage from "./pages/DonorListPage";
+import EnhancedDonorListPage from "./pages/EnhancedDonorListPage";
 import RecipientPortal from "./pages/RecipientPortal";
 import Community from "./pages/Community";
 import About from "./pages/About";
@@ -36,7 +36,7 @@ const App = () => (
             <Route path="/donor-registration" element={<DonorRegistration />} />
             <Route path="/donor-dashboard" element={<DonorDashboard />} />
             <Route path="/hospital-dashboard" element={<HospitalDashboard />} />
-            <Route path="/donor-list" element={<DonorListPage />} />
+            <Route path="/donor-list" element={<EnhancedDonorListPage />} />
             <Route path="/recipient-portal" element={<RecipientPortal />} />
             <Route path="/community" element={<Community />} />
             <Route path="/events" element={<Events />} />

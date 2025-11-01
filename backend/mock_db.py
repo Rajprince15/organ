@@ -112,6 +112,19 @@ class MockCollection:
             def __init__(self, results):
                 self.results = results
             
+            def sort(self, field: str, direction: int = 1):
+                """Sort results by field."""
+                reverse = (direction == -1)
+                try:
+                    self.results = sorted(
+                        self.results, 
+                        key=lambda x: x.get(field, ""), 
+                        reverse=reverse
+                    )
+                except Exception:
+                    pass
+                return self
+            
             async def to_list(self, length: int) -> List[Dict]:
                 return self.results[:length] if length else self.results
         
@@ -168,7 +181,18 @@ def seed_mock_data(db: MockDatabase):
     donor_id_3 = str(uuid.uuid4())
     donor_id_4 = str(uuid.uuid4())
     donor_id_5 = str(uuid.uuid4())
+    donor_id_6 = str(uuid.uuid4())
+    donor_id_7 = str(uuid.uuid4())
+    donor_id_8 = str(uuid.uuid4())
+    donor_id_9 = str(uuid.uuid4())
+    donor_id_10 = str(uuid.uuid4())
+    donor_id_11 = str(uuid.uuid4())
+    donor_id_12 = str(uuid.uuid4())
+    donor_id_13 = str(uuid.uuid4())
+    donor_id_14 = str(uuid.uuid4())
+    donor_id_15 = str(uuid.uuid4())
     hospital_id = str(uuid.uuid4())
+    hospital_id_2 = str(uuid.uuid4())
     
     test_users = [
         {
@@ -237,6 +261,136 @@ def seed_mock_data(db: MockDatabase):
             "updated_at": datetime.utcnow()
         },
         {
+            "id": donor_id_6,
+            "email": "jessica.brown@email.com",
+            "hashed_password": pwd_context.hash("donor123"),
+            "role": "donor",
+            "name": "Jessica Brown",
+            "mobile": "+1234567897",
+            "age": 26,
+            "mobile_verified": True,
+            "is_active": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": donor_id_7,
+            "email": "robert.garcia@email.com",
+            "hashed_password": pwd_context.hash("donor123"),
+            "role": "donor",
+            "name": "Robert Garcia",
+            "mobile": "+1234567898",
+            "age": 45,
+            "mobile_verified": True,
+            "is_active": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": donor_id_8,
+            "email": "lisa.anderson@email.com",
+            "hashed_password": pwd_context.hash("donor123"),
+            "role": "donor",
+            "name": "Lisa Anderson",
+            "mobile": "+1234567899",
+            "age": 33,
+            "mobile_verified": True,
+            "is_active": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": donor_id_9,
+            "email": "james.martinez@email.com",
+            "hashed_password": pwd_context.hash("donor123"),
+            "role": "donor",
+            "name": "James Martinez",
+            "mobile": "+1234567810",
+            "age": 29,
+            "mobile_verified": True,
+            "is_active": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": donor_id_10,
+            "email": "maria.rodriguez@email.com",
+            "hashed_password": pwd_context.hash("donor123"),
+            "role": "donor",
+            "name": "Maria Rodriguez",
+            "mobile": "+1234567811",
+            "age": 38,
+            "mobile_verified": True,
+            "is_active": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": donor_id_11,
+            "email": "william.taylor@email.com",
+            "hashed_password": pwd_context.hash("donor123"),
+            "role": "donor",
+            "name": "William Taylor",
+            "mobile": "+1234567812",
+            "age": 52,
+            "mobile_verified": True,
+            "is_active": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": donor_id_12,
+            "email": "jennifer.lee@email.com",
+            "hashed_password": pwd_context.hash("donor123"),
+            "role": "donor",
+            "name": "Jennifer Lee",
+            "mobile": "+1234567813",
+            "age": 27,
+            "mobile_verified": True,
+            "is_active": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": donor_id_13,
+            "email": "thomas.white@email.com",
+            "hashed_password": pwd_context.hash("donor123"),
+            "role": "donor",
+            "name": "Thomas White",
+            "mobile": "+1234567814",
+            "age": 41,
+            "mobile_verified": True,
+            "is_active": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": donor_id_14,
+            "email": "patricia.harris@email.com",
+            "hashed_password": pwd_context.hash("donor123"),
+            "role": "donor",
+            "name": "Patricia Harris",
+            "mobile": "+1234567815",
+            "age": 36,
+            "mobile_verified": True,
+            "is_active": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": donor_id_15,
+            "email": "charles.clark@email.com",
+            "hashed_password": pwd_context.hash("donor123"),
+            "role": "donor",
+            "name": "Charles Clark",
+            "mobile": "+1234567816",
+            "age": 48,
+            "mobile_verified": True,
+            "is_active": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
             "id": hospital_id,
             "email": "hospital@organconnect.com",
             "hashed_password": pwd_context.hash("hospital123"),
@@ -250,12 +404,25 @@ def seed_mock_data(db: MockDatabase):
             "updated_at": datetime.utcnow()
         },
         {
+            "id": hospital_id_2,
+            "email": "metro.hospital@email.com",
+            "hashed_password": pwd_context.hash("hospital123"),
+            "role": "hospital",
+            "name": "Metro General Hospital",
+            "mobile": "+1234567892",
+            "age": None,
+            "mobile_verified": True,
+            "is_active": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
             "id": str(uuid.uuid4()),
             "email": "admin@organconnect.com",
             "hashed_password": pwd_context.hash("admin123"),
             "role": "admin",
             "name": "Admin User",
-            "mobile": "+1234567892",
+            "mobile": "+1234567820",
             "age": 35,
             "mobile_verified": True,
             "is_active": True,
@@ -283,6 +450,9 @@ def seed_mock_data(db: MockDatabase):
             "date_of_birth": "1994-01-15",
             "blood_group": "O+",
             "organs": ["Heart", "Kidneys", "Liver", "Corneas"],
+            "city": "New York",
+            "state": "New York",
+            "country": "USA",
             "consent": True,
             "status": "approved",
             "created_at": datetime.utcnow(),
@@ -298,6 +468,9 @@ def seed_mock_data(db: MockDatabase):
             "date_of_birth": "1996-05-22",
             "blood_group": "A+",
             "organs": ["Kidneys", "Liver", "Pancreas"],
+            "city": "Los Angeles",
+            "state": "California",
+            "country": "USA",
             "consent": True,
             "status": "approved",
             "created_at": datetime.utcnow(),
@@ -313,6 +486,9 @@ def seed_mock_data(db: MockDatabase):
             "date_of_birth": "1989-08-10",
             "blood_group": "B+",
             "organs": ["Heart", "Lungs", "Corneas"],
+            "city": "Chicago",
+            "state": "Illinois",
+            "country": "USA",
             "consent": True,
             "status": "approved",
             "created_at": datetime.utcnow(),
@@ -328,6 +504,9 @@ def seed_mock_data(db: MockDatabase):
             "date_of_birth": "1982-11-30",
             "blood_group": "AB+",
             "organs": ["Liver", "Kidneys", "Heart Valves", "Skin"],
+            "city": "Houston",
+            "state": "Texas",
+            "country": "USA",
             "consent": True,
             "status": "approved",
             "created_at": datetime.utcnow(),
@@ -343,6 +522,189 @@ def seed_mock_data(db: MockDatabase):
             "date_of_birth": "1993-03-18",
             "blood_group": "O-",
             "organs": ["Heart", "Kidneys", "Lungs", "Liver", "Corneas", "Pancreas"],
+            "city": "Phoenix",
+            "state": "Arizona",
+            "country": "USA",
+            "consent": True,
+            "status": "approved",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "donor_id": donor_id_6,
+            "donor_email": "jessica.brown@email.com",
+            "full_name": "Jessica Brown",
+            "email": "jessica.brown@email.com",
+            "phone": "+1234567897",
+            "date_of_birth": "1998-07-14",
+            "blood_group": "A-",
+            "organs": ["Kidneys", "Liver", "Corneas", "Bone"],
+            "city": "Philadelphia",
+            "state": "Pennsylvania",
+            "country": "USA",
+            "consent": True,
+            "status": "approved",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "donor_id": donor_id_7,
+            "donor_email": "robert.garcia@email.com",
+            "full_name": "Robert Garcia",
+            "email": "robert.garcia@email.com",
+            "phone": "+1234567898",
+            "date_of_birth": "1979-02-25",
+            "blood_group": "B-",
+            "organs": ["Heart", "Liver", "Pancreas", "Intestines"],
+            "city": "San Antonio",
+            "state": "Texas",
+            "country": "USA",
+            "consent": True,
+            "status": "approved",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "donor_id": donor_id_8,
+            "donor_email": "lisa.anderson@email.com",
+            "full_name": "Lisa Anderson",
+            "email": "lisa.anderson@email.com",
+            "phone": "+1234567899",
+            "date_of_birth": "1991-09-08",
+            "blood_group": "AB-",
+            "organs": ["Lungs", "Kidneys", "Corneas", "Skin"],
+            "city": "San Diego",
+            "state": "California",
+            "country": "USA",
+            "consent": True,
+            "status": "approved",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "donor_id": donor_id_9,
+            "donor_email": "james.martinez@email.com",
+            "full_name": "James Martinez",
+            "email": "james.martinez@email.com",
+            "phone": "+1234567810",
+            "date_of_birth": "1995-12-03",
+            "blood_group": "O+",
+            "organs": ["Heart", "Kidneys", "Liver", "Heart Valves"],
+            "city": "Dallas",
+            "state": "Texas",
+            "country": "USA",
+            "consent": True,
+            "status": "approved",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "donor_id": donor_id_10,
+            "donor_email": "maria.rodriguez@email.com",
+            "full_name": "Maria Rodriguez",
+            "email": "maria.rodriguez@email.com",
+            "phone": "+1234567811",
+            "date_of_birth": "1986-04-20",
+            "blood_group": "A+",
+            "organs": ["Liver", "Pancreas", "Intestines", "Corneas"],
+            "city": "San Jose",
+            "state": "California",
+            "country": "USA",
+            "consent": True,
+            "status": "approved",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "donor_id": donor_id_11,
+            "donor_email": "william.taylor@email.com",
+            "full_name": "William Taylor",
+            "email": "william.taylor@email.com",
+            "phone": "+1234567812",
+            "date_of_birth": "1972-06-17",
+            "blood_group": "B+",
+            "organs": ["Kidneys", "Liver", "Corneas"],
+            "city": "Austin",
+            "state": "Texas",
+            "country": "USA",
+            "consent": True,
+            "status": "approved",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "donor_id": donor_id_12,
+            "donor_email": "jennifer.lee@email.com",
+            "full_name": "Jennifer Lee",
+            "email": "jennifer.lee@email.com",
+            "phone": "+1234567813",
+            "date_of_birth": "1997-10-11",
+            "blood_group": "O-",
+            "organs": ["Heart", "Lungs", "Kidneys", "Liver", "Pancreas"],
+            "city": "Jacksonville",
+            "state": "Florida",
+            "country": "USA",
+            "consent": True,
+            "status": "approved",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "donor_id": donor_id_13,
+            "donor_email": "thomas.white@email.com",
+            "full_name": "Thomas White",
+            "email": "thomas.white@email.com",
+            "phone": "+1234567814",
+            "date_of_birth": "1983-01-28",
+            "blood_group": "A-",
+            "organs": ["Liver", "Kidneys", "Bone", "Skin"],
+            "city": "Columbus",
+            "state": "Ohio",
+            "country": "USA",
+            "consent": True,
+            "status": "approved",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "donor_id": donor_id_14,
+            "donor_email": "patricia.harris@email.com",
+            "full_name": "Patricia Harris",
+            "email": "patricia.harris@email.com",
+            "phone": "+1234567815",
+            "date_of_birth": "1988-08-05",
+            "blood_group": "AB+",
+            "organs": ["Heart", "Lungs", "Liver", "Corneas", "Heart Valves"],
+            "city": "Fort Worth",
+            "state": "Texas",
+            "country": "USA",
+            "consent": True,
+            "status": "approved",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "donor_id": donor_id_15,
+            "donor_email": "charles.clark@email.com",
+            "full_name": "Charles Clark",
+            "email": "charles.clark@email.com",
+            "phone": "+1234567816",
+            "date_of_birth": "1976-03-22",
+            "blood_group": "B-",
+            "organs": ["Kidneys", "Pancreas", "Intestines", "Bone"],
+            "city": "Charlotte",
+            "state": "North Carolina",
+            "country": "USA",
             "consent": True,
             "status": "approved",
             "created_at": datetime.utcnow(),
@@ -404,3 +766,4 @@ def seed_mock_data(db: MockDatabase):
     print("   - admin@organconnect.com / admin123")
     print(f"   - Created {len(sample_donations)} approved donor applications")
     print(f"   - Created {len(sample_requirements)} hospital requirements")
+    print(f"   - Created sample contact history and shortlist entries")
