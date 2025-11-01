@@ -10,7 +10,7 @@ import OrganDonationChatbot from "@/components/OrganDonationChatbot";
 import { Activity, AlertCircle, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -18,7 +18,10 @@ const RecipientPortal = () => {
   const { toast } = useToast();
   const { user, token } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [requirementId, setRequirementId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     patientName: "",
     age: "",
@@ -40,8 +43,30 @@ const RecipientPortal = () => {
         variant: "destructive",
       });
       navigate("/login");
+      return;
     }
-  }, [user, navigate]);
+
+    // Check if we're in edit mode (requirement data passed via location state)
+    if (location.state && location.state.requirement) {
+      const req = location.state.requirement;
+      setIsEditMode(true);
+      setRequirementId(req.id);
+      
+      // Pre-populate form with existing data
+      setFormData({
+        patientName: req.patient_name || "",
+        age: req.age?.toString() || "",
+        bloodGroup: req.blood_group || "",
+        organRequired: req.organ_required || "",
+        urgencyLevel: req.urgency_level || "",
+        hospitalName: req.hospital_name || "",
+        doctorName: req.doctor_name || "",
+        contactNumber: req.contact_number || "",
+        email: req.email || "",
+        medicalHistory: req.medical_history || "",
+      });
+    }
+  }, [user, navigate, location]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,59 +83,56 @@ const RecipientPortal = () => {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch(`${API_URL}/api/hospital-requirements`, {
-        method: 'POST',
+      const requestBody = {
+        patient_name: formData.patientName,
+        age: parseInt(formData.age),
+        blood_group: formData.bloodGroup,
+        organ_required: formData.organRequired,
+        urgency_level: formData.urgencyLevel,
+        hospital_name: formData.hospitalName,
+        doctor_name: formData.doctorName,
+        contact_number: formData.contactNumber,
+        email: formData.email,
+        medical_history: formData.medicalHistory
+      };
+
+      // Use PUT for edit mode, POST for create mode
+      const url = isEditMode 
+        ? `${API_URL}/api/hospital-requirements/${requirementId}` 
+        : `${API_URL}/api/hospital-requirements`;
+      
+      const method = isEditMode ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method: method,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          patient_name: formData.patientName,
-          age: parseInt(formData.age),
-          blood_group: formData.bloodGroup,
-          organ_required: formData.organRequired,
-          urgency_level: formData.urgencyLevel,
-          hospital_name: formData.hospitalName,
-          doctor_name: formData.doctorName,
-          contact_number: formData.contactNumber,
-          email: formData.email,
-          medical_history: formData.medicalHistory
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (response.ok) {
         toast({
-          title: "Requirement Posted Successfully",
-          description: "Your organ requirement has been submitted. You can view it in your dashboard.",
+          title: isEditMode ? "Requirement Updated Successfully" : "Requirement Posted Successfully",
+          description: isEditMode 
+            ? "Your organ requirement has been updated successfully." 
+            : "Your organ requirement has been submitted. You can view it in your dashboard.",
         });
         
-        // Reset form
-        setFormData({
-          patientName: "",
-          age: "",
-          bloodGroup: "",
-          organRequired: "",
-          urgencyLevel: "",
-          hospitalName: "",
-          doctorName: "",
-          contactNumber: "",
-          email: "",
-          medicalHistory: "",
-        });
-
         // Navigate to dashboard after a brief delay
         setTimeout(() => {
           navigate("/hospital-dashboard");
         }, 1500);
       } else {
         const error = await response.json();
-        throw new Error(error.detail || 'Failed to post requirement');
+        throw new Error(error.detail || `Failed to ${isEditMode ? 'update' : 'post'} requirement`);
       }
     } catch (error) {
-      console.error('Failed to post requirement:', error);
+      console.error(`Failed to ${isEditMode ? 'update' : 'post'} requirement:`, error);
       toast({
         title: "Submission Failed",
-        description: error instanceof Error ? error.message : "Failed to post requirement. Please try again.",
+        description: error instanceof Error ? error.message : `Failed to ${isEditMode ? 'update' : 'post'} requirement. Please try again.`,
         variant: "destructive",
       });
     } finally {
@@ -131,10 +153,12 @@ const RecipientPortal = () => {
               <Activity className="h-8 w-8 text-secondary-foreground" />
             </div>
             <h1 className="text-4xl lg:text-5xl font-bold mb-4">
-              Post Organ <span className="bg-gradient-hero bg-clip-text text-transparent">Requirement</span>
+              {isEditMode ? "Edit Organ" : "Post Organ"} <span className="bg-gradient-hero bg-clip-text text-transparent">Requirement</span>
             </h1>
             <p className="text-xl text-muted-foreground">
-              Submit patient details for real-time AI-powered organ matching
+              {isEditMode 
+                ? "Update patient details for organ matching" 
+                : "Submit patient details for real-time AI-powered organ matching"}
             </p>
           </div>
 
@@ -343,7 +367,9 @@ const RecipientPortal = () => {
                   className="w-full bg-gradient-secondary text-secondary-foreground shadow-medium hover:shadow-glow"
                   data-testid="submit-requirement-button"
                 >
-                  {isSubmitting ? "Submitting..." : "Submit Requirement & Start Matching"}
+                  {isSubmitting 
+                    ? (isEditMode ? "Updating..." : "Submitting...") 
+                    : (isEditMode ? "Update Requirement" : "Submit Requirement & Start Matching")}
                   <Activity className="ml-2 h-5 w-5" />
                 </Button>
                 <p className="text-xs text-center text-muted-foreground mt-4">

@@ -126,6 +126,14 @@ class HospitalRequirementUpdate(BaseModel):
     patient_name: Optional[str] = None
     age: Optional[int] = None
     blood_group: Optional[str] = None
+    organ_required: Optional[str] = None
+    urgency_level: Optional[Literal["critical", "high", "medium"]] = None
+    hospital_name: Optional[str] = None
+    doctor_name: Optional[str] = None
+    contact_number: Optional[str] = None
+    email: Optional[EmailStr] = None
+    medical_history: Optional[str] = None
+    status: Optional[Literal["active", "fulfilled", "cancelled"]] = None
 
 # Contact History Models
 class ContactHistory(BaseModel):
@@ -158,12 +166,3 @@ class Shortlist(BaseModel):
 class ShortlistCreate(BaseModel):
     donor_id: str
     notes: Optional[str] = None
-
-    organ_required: Optional[str] = None
-    urgency_level: Optional[Literal["critical", "high", "medium"]] = None
-    hospital_name: Optional[str] = None
-    doctor_name: Optional[str] = None
-    contact_number: Optional[str] = None
-    email: Optional[EmailStr] = None
-    medical_history: Optional[str] = None
-    status: Optional[Literal["active", "fulfilled", "cancelled"]] = None
