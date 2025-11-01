@@ -187,7 +187,7 @@ const EnhancedDonorListPage = () => {
 
       if (response.ok) {
         const data = await response.json();
-        const ids = new Set(data.map((item: any) => item.donor_id));
+        const ids = new Set<string>(data.map((item: any) => item.donor_id));
         setShortlistedIds(ids);
       }
     } catch (error) {
@@ -205,7 +205,7 @@ const EnhancedDonorListPage = () => {
 
       if (response.ok) {
         const data = await response.json();
-        const ids = new Set(data.map((item: any) => item.donor_id));
+        const ids = new Set<string>(data.map((item: any) => item.donor_id));
         setContactedIds(ids);
       }
     } catch (error) {
