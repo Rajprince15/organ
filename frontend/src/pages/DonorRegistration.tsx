@@ -26,6 +26,9 @@ const DonorRegistration = () => {
     dateOfBirth: "",
     bloodGroup: "",
     organs: [] as string[],
+    city: "",
+    state: "",
+    country: "",
     consent: false,
   });
 
@@ -110,6 +113,9 @@ const DonorRegistration = () => {
           date_of_birth: formData.dateOfBirth,
           blood_group: formData.bloodGroup,
           organs: formData.organs,
+          city: formData.city,
+          state: formData.state,
+          country: formData.country,
           consent: formData.consent
         })
       });
@@ -279,10 +285,47 @@ const DonorRegistration = () => {
                 </div>
               </div>
 
+              {/* Location Information */}
+              <div>
+                <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                  <span className="w-8 h-8 bg-secondary/10 rounded-full flex items-center justify-center text-sm font-bold text-secondary">3</span>
+                  Location Information
+                </h2>
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="city">City</Label>
+                    <Input
+                      id="city"
+                      value={formData.city}
+                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                      placeholder="Enter your city"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="state">State/Province</Label>
+                    <Input
+                      id="state"
+                      value={formData.state}
+                      onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                      placeholder="Enter your state"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="country">Country</Label>
+                    <Input
+                      id="country"
+                      value={formData.country}
+                      onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                      placeholder="Enter your country"
+                    />
+                  </div>
+                </div>
+              </div>
+
               {/* Organ Selection */}
               <div>
                 <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                  <span className="w-8 h-8 bg-accent/10 rounded-full flex items-center justify-center text-sm font-bold text-accent">3</span>
+                  <span className="w-8 h-8 bg-accent/10 rounded-full flex items-center justify-center text-sm font-bold text-accent">4</span>
                   Organs to Donate *
                 </h2>
                 <p className="text-sm text-muted-foreground mb-4">
@@ -314,7 +357,7 @@ const DonorRegistration = () => {
               {/* Consent */}
               <div>
                 <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                  <span className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-sm font-bold text-primary">4</span>
+                  <span className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-sm font-bold text-primary">5</span>
                   Consent & Agreement
                 </h2>
                 <Card className="p-4 bg-muted/50">

@@ -4,12 +4,16 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Progress } from "@/components/ui/progress";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { Heart, Edit, Trash2, Calendar, Mail, Phone, Droplet, AlertCircle, CheckCircle, Clock, XCircle } from "lucide-react";
+import { Heart, Edit, Trash2, Calendar, Mail, Phone, Droplet, AlertCircle, CheckCircle, Clock, XCircle, Download, Award, Users, Sparkles, MapPin, Quote } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { QRCodeCanvas } from 'qrcode.react';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,6 +37,9 @@ interface DonationApplication {
   date_of_birth: string;
   blood_group: string;
   organs: string[];
+  city?: string;
+  state?: string;
+  country?: string;
   consent: boolean;
   status: "pending" | "approved" | "active" | "cancelled";
   created_at: string;
@@ -47,6 +54,7 @@ const DonorDashboard = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showDonorCard, setShowDonorCard] = useState(false);
   const [formData, setFormData] = useState({
     full_name: "",
     email: "",
@@ -54,12 +62,101 @@ const DonorDashboard = () => {
     date_of_birth: "",
     blood_group: "",
     organs: [] as string[],
+    city: "",
+    state: "",
+    country: "",
     consent: false,
   });
 
   const organOptions = [
     "Heart", "Lungs", "Liver", "Kidneys", "Pancreas", "Intestines", "Corneas", "Skin", "Bone", "Heart Valves"
   ];
+
+  // Mock success stories
+  const successStories = [
+    {
+      name: "Sarah Johnson",
+      organ: "Kidney",
+      quote: "Thanks to my donor, I got a second chance at life. I can now watch my grandchildren grow up.",
+      year: "2023"
+    },
+    {
+      name: "Michael Chen",
+      organ: "Liver",
+      quote: "The gift of life I received has allowed me to pursue my dreams and live without limitations.",
+      year: "2022"
+    },
+    {
+      name: "Emma Rodriguez",
+      organ: "Heart",
+      quote: "Every heartbeat reminds me of the incredible generosity of my donor and their family.",
+      year: "2023"
+    }
+  ];
+
+  // Calculate potential lives saved based on organs
+  const calculateImpact = (organs: string[]) => {
+    let lives = 0;
+    const organImpact: { [key: string]: number } = {
+      "Heart": 1,
+      "Lungs": 2,
+      "Liver": 1,
+      "Kidneys": 2,
+      "Pancreas": 1,
+      "Intestines": 1,
+      "Corneas": 2,
+      "Skin": 50,  // Can help many burn victims
+      "Bone": 10,  // Multiple recipients
+      "Heart Valves": 4
+    };
+    
+    organs.forEach(organ => {
+      lives += organImpact[organ] || 0;
+    });
+    
+    return lives;
+  };
+
+  // Calculate profile completion
+  const calculateProfileCompletion = (app: DonationApplication | null) => {
+    if (!app) return 0;
+    
+    let completed = 0;
+    const total = 10;
+    
+    if (app.full_name) completed++;
+    if (app.email) completed++;
+    if (app.phone) completed++;
+    if (app.date_of_birth) completed++;
+    if (app.blood_group) completed++;
+    if (app.organs.length > 0) completed++;
+    if (app.city) completed++;
+    if (app.state) completed++;
+    if (app.country) completed++;
+    if (app.consent) completed++;
+    
+    return Math.round((completed / total) * 100);
+  };
+
+  const getProfileTips = (app: DonationApplication | null) => {
+    if (!app) return [];
+    
+    const tips: string[] = [];
+    
+    if (!app.city || !app.state || !app.country) {
+      tips.push("Add your location details to help hospitals find suitable matches in your area");
+    }
+    
+    if (app.organs.length < 3) {
+      tips.push("Consider pledging more organs - one donor can save up to 8 lives!");
+    }
+    
+    if (app.status === "pending") {
+      tips.push("Your application is pending approval. You'll be notified once approved.");
+    }
+    
+    return tips;
+  };
 
   useEffect(() => {
     if (!user || user.role !== "donor") {
@@ -88,6 +185,9 @@ const DonorDashboard = () => {
             date_of_birth: data.date_of_birth,
             blood_group: data.blood_group,
             organs: data.organs,
+            city: data.city || "",
+            state: data.state || "",
+            country: data.country || "",
             consent: data.consent,
           });
         }
@@ -172,6 +272,39 @@ const DonorDashboard = () => {
     }));
   };
 
+  const downloadDonorCard = async () => {
+    const cardElement = document.getElementById('donor-card');
+    if (!cardElement) return;
+
+    try {
+      const canvas = await html2canvas(cardElement, {
+        scale: 2,
+        backgroundColor: '#ffffff'
+      });
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: [85.6, 53.98] // Credit card size
+      });
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, 85.6, 53.98);
+      pdf.save(`donor-card-${application?.full_name.replace(/\s/g, '-')}.pdf`);
+      
+      toast({
+        title: "Card Downloaded",
+        description: "Your donor card has been downloaded successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Download Failed",
+        description: "Failed to download donor card. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "approved":
@@ -244,21 +377,91 @@ const DonorDashboard = () => {
     );
   }
 
+  const profileCompletion = calculateProfileCompletion(application);
+  const profileTips = getProfileTips(application);
+  const potentialLives = calculateImpact(application.organs);
+
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
       
       <div className="pt-24 pb-16 lg:pt-32 lg:pb-24">
-        <div className="container mx-auto px-4 lg:px-8 max-w-4xl">
+        <div className="container mx-auto px-4 lg:px-8 max-w-6xl">
           {/* Header */}
           <div className="mb-8">
             <h1 className="text-4xl font-bold mb-2">
               My Donation <span className="bg-gradient-hero bg-clip-text text-transparent">Dashboard</span>
             </h1>
             <p className="text-muted-foreground">
-              Manage your organ donation application
+              Manage your organ donation application and see your impact
             </p>
           </div>
+
+          {/* Impact Dashboard */}
+          <div className="grid md:grid-cols-3 gap-6 mb-8">
+            <Card className="p-6 bg-gradient-to-br from-red-50 to-pink-50 border-red-200">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                  <Heart className="h-6 w-6 text-red-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Potential Lives Saved</p>
+                  <p className="text-3xl font-bold text-red-600">{potentialLives}</p>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-3">
+                {application.organs.length} organs pledged
+              </p>
+            </Card>
+
+            <Card className="p-6 bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-200">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                  <Award className="h-6 w-6 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Profile Completion</p>
+                  <p className="text-3xl font-bold text-blue-600">{profileCompletion}%</p>
+                </div>
+              </div>
+              <Progress value={profileCompletion} className="mt-3 h-2" />
+            </Card>
+
+            <Card className="p-6 bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                  <Users className="h-6 w-6 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Registration Status</p>
+                  <p className="text-lg font-bold text-green-600 capitalize">{application.status}</p>
+                </div>
+              </div>
+              <div className="mt-3">
+                {getStatusIcon(application.status)}
+              </div>
+            </Card>
+          </div>
+
+          {/* Profile Completion Tips */}
+          {profileTips.length > 0 && (
+            <Card className="p-6 mb-8 bg-gradient-to-r from-amber-50 to-yellow-50 border-amber-200">
+              <div className="flex items-start gap-3">
+                <Sparkles className="h-5 w-5 text-amber-600 mt-0.5" />
+                <div className="flex-1">
+                  <h3 className="font-semibold text-amber-900 mb-2">Tips to Improve Your Profile</h3>
+                  <ul className="space-y-1">
+                    {profileTips.map((tip, index) => (
+                      <li key={index} className="text-sm text-amber-800 flex items-start gap-2">
+                        <span className="text-amber-600">•</span>
+                        <span>{tip}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </Card>
+          )}
 
           {/* Status Card */}
           <Card className="p-6 mb-6" data-testid="application-status-card">
@@ -283,102 +486,149 @@ const DonorDashboard = () => {
 
           {/* Application Details or Edit Form */}
           {!isEditing ? (
-            <Card className="p-8 shadow-strong" data-testid="application-details-card">
-              <div className="flex justify-between items-start mb-6">
-                <h2 className="text-2xl font-semibold">Application Details</h2>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsEditing(true)}
-                    data-testid="edit-application-button"
-                  >
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    onClick={() => setShowDeleteDialog(true)}
-                    data-testid="delete-application-button"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
-                  </Button>
+            <>
+              <Card className="p-8 shadow-strong mb-8" data-testid="application-details-card">
+                <div className="flex justify-between items-start mb-6">
+                  <h2 className="text-2xl font-semibold">Application Details</h2>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowDonorCard(true)}
+                      data-testid="view-donor-card-button"
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Donor Card
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsEditing(true)}
+                      data-testid="edit-application-button"
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={() => setShowDeleteDialog(true)}
+                      data-testid="delete-application-button"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </Button>
+                  </div>
                 </div>
-              </div>
 
-              <div className="space-y-6">
-                {/* Personal Information */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-4 text-primary">Personal Information</h3>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div className="flex items-start gap-3">
-                      <Heart className="h-5 w-5 text-muted-foreground mt-0.5" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Full Name</p>
-                        <p className="font-medium">{application.full_name}</p>
+                <div className="space-y-6">
+                  {/* Personal Information */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4 text-primary">Personal Information</h3>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="flex items-start gap-3">
+                        <Heart className="h-5 w-5 text-muted-foreground mt-0.5" />
+                        <div>
+                          <p className="text-sm text-muted-foreground">Full Name</p>
+                          <p className="font-medium">{application.full_name}</p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <Mail className="h-5 w-5 text-muted-foreground mt-0.5" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Email</p>
-                        <p className="font-medium">{application.email}</p>
+                      <div className="flex items-start gap-3">
+                        <Mail className="h-5 w-5 text-muted-foreground mt-0.5" />
+                        <div>
+                          <p className="text-sm text-muted-foreground">Email</p>
+                          <p className="font-medium">{application.email}</p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <Phone className="h-5 w-5 text-muted-foreground mt-0.5" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Phone</p>
-                        <p className="font-medium">{application.phone}</p>
+                      <div className="flex items-start gap-3">
+                        <Phone className="h-5 w-5 text-muted-foreground mt-0.5" />
+                        <div>
+                          <p className="text-sm text-muted-foreground">Phone</p>
+                          <p className="font-medium">{application.phone}</p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Date of Birth</p>
-                        <p className="font-medium">{new Date(application.date_of_birth).toLocaleDateString()}</p>
+                      <div className="flex items-start gap-3">
+                        <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
+                        <div>
+                          <p className="text-sm text-muted-foreground">Date of Birth</p>
+                          <p className="font-medium">{new Date(application.date_of_birth).toLocaleDateString()}</p>
+                        </div>
                       </div>
+                      <div className="flex items-start gap-3">
+                        <Droplet className="h-5 w-5 text-muted-foreground mt-0.5" />
+                        <div>
+                          <p className="text-sm text-muted-foreground">Blood Group</p>
+                          <p className="font-medium">{application.blood_group}</p>
+                        </div>
+                      </div>
+                      {(application.city || application.state || application.country) && (
+                        <div className="flex items-start gap-3">
+                          <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
+                          <div>
+                            <p className="text-sm text-muted-foreground">Location</p>
+                            <p className="font-medium">
+                              {[application.city, application.state, application.country].filter(Boolean).join(", ")}
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <div className="flex items-start gap-3">
-                      <Droplet className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  </div>
+
+                  {/* Organs to Donate */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4 text-secondary">Organs to Donate</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {application.organs.map((organ) => (
+                        <div
+                          key={organ}
+                          className="px-4 py-2 bg-primary/10 border border-primary/30 rounded-lg text-sm font-medium"
+                        >
+                          {organ}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Registration Info */}
+                  <div className="pt-4 border-t">
+                    <div className="grid md:grid-cols-2 gap-4 text-sm text-muted-foreground">
                       <div>
-                        <p className="text-sm text-muted-foreground">Blood Group</p>
-                        <p className="font-medium">{application.blood_group}</p>
+                        <span className="font-medium">Registered on:</span>{" "}
+                        {new Date(application.created_at).toLocaleDateString()}
+                      </div>
+                      <div>
+                        <span className="font-medium">Application ID:</span>{" "}
+                        {application.id.slice(0, 8)}...
                       </div>
                     </div>
                   </div>
                 </div>
+              </Card>
 
-                {/* Organs to Donate */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-4 text-secondary">Organs to Donate</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {application.organs.map((organ) => (
-                      <div
-                        key={organ}
-                        className="px-4 py-2 bg-primary/10 border border-primary/30 rounded-lg text-sm font-medium"
-                      >
-                        {organ}
+              {/* Success Stories */}
+              <Card className="p-8 mb-8 bg-gradient-to-br from-purple-50 to-pink-50">
+                <h2 className="text-2xl font-semibold mb-2 flex items-center gap-2">
+                  <Quote className="h-6 w-6 text-purple-600" />
+                  Success Stories
+                </h2>
+                <p className="text-muted-foreground mb-6">
+                  Read inspiring stories from organ recipients whose lives were transformed
+                </p>
+                <div className="grid md:grid-cols-3 gap-6">
+                  {successStories.map((story, index) => (
+                    <Card key={index} className="p-6 bg-white border-purple-200">
+                      <div className="mb-4">
+                        <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mb-3">
+                          <Heart className="h-6 w-6 text-purple-600" />
+                        </div>
+                        <h4 className="font-semibold text-lg">{story.name}</h4>
+                        <p className="text-sm text-purple-600 font-medium">{story.organ} Recipient</p>
                       </div>
-                    ))}
-                  </div>
+                      <p className="text-sm text-muted-foreground italic mb-3">"{story.quote}"</p>
+                      <p className="text-xs text-muted-foreground">Transplant Year: {story.year}</p>
+                    </Card>
+                  ))}
                 </div>
-
-                {/* Registration Info */}
-                <div className="pt-4 border-t">
-                  <div className="grid md:grid-cols-2 gap-4 text-sm text-muted-foreground">
-                    <div>
-                      <span className="font-medium">Registered on:</span>{" "}
-                      {new Date(application.created_at).toLocaleDateString()}
-                    </div>
-                    <div>
-                      <span className="font-medium">Application ID:</span>{" "}
-                      {application.id.slice(0, 8)}...
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </Card>
+              </Card>
+            </>
           ) : (
             <Card className="p-8 shadow-strong" data-testid="application-edit-form">
               <form onSubmit={handleUpdate} className="space-y-6">
@@ -396,6 +646,9 @@ const DonorDashboard = () => {
                         date_of_birth: application.date_of_birth,
                         blood_group: application.blood_group,
                         organs: application.organs,
+                        city: application.city || "",
+                        state: application.state || "",
+                        country: application.country || "",
                         consent: application.consent,
                       });
                     }}
@@ -480,6 +733,37 @@ const DonorDashboard = () => {
                   </div>
                 </div>
 
+                {/* Location Information */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Location</h3>
+                  <div className="grid md:grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="city">City</Label>
+                      <Input
+                        id="city"
+                        value={formData.city}
+                        onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="state">State</Label>
+                      <Input
+                        id="state"
+                        value={formData.state}
+                        onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="country">Country</Label>
+                      <Input
+                        id="country"
+                        value={formData.country}
+                        onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 {/* Organ Selection */}
                 <div>
                   <h3 className="text-lg font-semibold mb-4">Organs to Donate *</h3>
@@ -521,6 +805,88 @@ const DonorDashboard = () => {
           )}
         </div>
       </div>
+
+      {/* Donor Card Modal */}
+      {showDonorCard && application && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="p-8 max-w-2xl w-full">
+            <div className="flex justify-between items-start mb-6">
+              <h2 className="text-2xl font-semibold">Your Donor Card</h2>
+              <Button variant="ghost" onClick={() => setShowDonorCard(false)}>✕</Button>
+            </div>
+            
+            <div id="donor-card" className="bg-gradient-to-br from-red-500 to-pink-600 rounded-xl p-8 text-white mb-6">
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h3 className="text-2xl font-bold mb-1">ORGAN DONOR</h3>
+                  <p className="text-red-100">Life Saving Card</p>
+                </div>
+                <Heart className="h-12 w-12" />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-6 mb-6">
+                <div>
+                  <p className="text-red-100 text-sm mb-1">Name</p>
+                  <p className="font-bold text-lg">{application.full_name}</p>
+                </div>
+                <div>
+                  <p className="text-red-100 text-sm mb-1">Blood Group</p>
+                  <p className="font-bold text-lg">{application.blood_group}</p>
+                </div>
+                <div>
+                  <p className="text-red-100 text-sm mb-1">Date of Birth</p>
+                  <p className="font-semibold">{new Date(application.date_of_birth).toLocaleDateString()}</p>
+                </div>
+                <div>
+                  <p className="text-red-100 text-sm mb-1">Donor ID</p>
+                  <p className="font-semibold">{application.id.slice(0, 12)}</p>
+                </div>
+              </div>
+              
+              <div className="mb-6">
+                <p className="text-red-100 text-sm mb-2">Organs Pledged:</p>
+                <div className="flex flex-wrap gap-2">
+                  {application.organs.map((organ) => (
+                    <span key={organ} className="px-3 py-1 bg-white/20 rounded-full text-sm">
+                      {organ}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="flex justify-between items-end">
+                <div>
+                  <p className="text-red-100 text-xs">Emergency Contact</p>
+                  <p className="font-semibold text-sm">{application.phone}</p>
+                </div>
+                <div className="bg-white p-2 rounded">
+                  <QRCodeCanvas 
+                    value={JSON.stringify({
+                      id: application.id,
+                      name: application.full_name,
+                      blood_group: application.blood_group,
+                      organs: application.organs,
+                      dob: application.date_of_birth
+                    })}
+                    size={80}
+                    level="H"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex gap-4">
+              <Button onClick={downloadDonorCard} className="flex-1 bg-gradient-primary">
+                <Download className="h-4 w-4 mr-2" />
+                Download as PDF
+              </Button>
+              <Button variant="outline" onClick={() => setShowDonorCard(false)} className="flex-1">
+                Close
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
