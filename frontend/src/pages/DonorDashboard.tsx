@@ -9,6 +9,7 @@ import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { DonorMatchedRequirements } from "@/components/DonorMatchedRequirements";
 import { Heart, Edit, Trash2, Calendar, Mail, Phone, Droplet, AlertCircle, CheckCircle, Clock, XCircle, Download, Award, Users, Sparkles, MapPin, Quote } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { QRCodeCanvas } from 'qrcode.react';
@@ -483,6 +484,13 @@ const DonorDashboard = () => {
               </div>
             </div>
           </Card>
+
+          {/* Matching Requirements Section */}
+          {application.status === 'approved' && (
+            <div className="mb-8">
+              <DonorMatchedRequirements />
+            </div>
+          )}
 
           {/* Application Details or Edit Form */}
           {!isEditing ? (

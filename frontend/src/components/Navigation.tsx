@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Heart, Menu, X, Moon, Sun, LogOut, User } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useAuth } from "@/contexts/AuthContext";
+import { NotificationBell } from "@/components/NotificationBell";
 
 const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -55,6 +56,8 @@ const Navigation = () => {
               <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
               <span className="sr-only">Toggle theme</span>
             </Button>
+            
+            {user && <NotificationBell />}
             
             {user ? (
               <>

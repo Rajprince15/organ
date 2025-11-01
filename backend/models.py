@@ -166,3 +166,23 @@ class Shortlist(BaseModel):
 class ShortlistCreate(BaseModel):
     donor_id: str
     notes: Optional[str] = None
+
+# Notification Models
+class Notification(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    type: Literal["match_found", "status_change", "contact_received", "new_requirement", "general"]
+    title: str
+    message: str
+    link: Optional[str] = None
+    read: bool = False
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    metadata: Optional[dict] = None
+
+class NotificationCreate(BaseModel):
+    user_id: str
+    type: Literal["match_found", "status_change", "contact_received", "new_requirement", "general"]
+    title: str
+    message: str
+    link: Optional[str] = None
+    metadata: Optional[dict] = None

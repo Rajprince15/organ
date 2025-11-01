@@ -760,10 +760,53 @@ def seed_mock_data(db: MockDatabase):
         req_id = requirement['id']
         db.hospital_requirements._data[req_id] = requirement.copy()
     
+    # Create sample notifications
+    sample_notifications = [
+        {
+            "id": str(uuid.uuid4()),
+            "user_id": hospital_id,
+            "type": "match_found",
+            "title": "🎯 5 Compatible Donors Found!",
+            "message": "Found 5 compatible donors for Heart requirement (O+ blood group).",
+            "link": "/hospital-dashboard",
+            "read": False,
+            "created_at": datetime.utcnow(),
+            "metadata": {"match_count": 5, "organ": "Heart", "blood_group": "O+"}
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "user_id": donor_id_1,
+            "type": "match_found",
+            "title": "❤️ 2 New Matching Requirements!",
+            "message": "Found 2 hospitals looking for Heart, Kidneys donation. Your profile matches their requirements!",
+            "link": "/donor-dashboard",
+            "read": False,
+            "created_at": datetime.utcnow(),
+            "metadata": {"match_count": 2, "organs": ["Heart", "Kidneys"]}
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "user_id": donor_id_1,
+            "type": "status_change",
+            "title": "📋 Donation Application Status Updated",
+            "message": "Your donation application status has been changed from 'pending' to 'approved'.",
+            "link": "/donor-dashboard",
+            "read": True,
+            "created_at": datetime.utcnow(),
+            "metadata": {"status_type": "Donation Application", "old_status": "pending", "new_status": "approved"}
+        }
+    ]
+    
+    # Insert notifications
+    for notification in sample_notifications:
+        notif_id = notification['id']
+        db.notifications._data[notif_id] = notification.copy()
+    
     print("Mock database seeded with test users:")
     print("   - donor@organconnect.com / donor123 (with donation application)")
     print("   - hospital@organconnect.com / hospital123 (with requirements)")
     print("   - admin@organconnect.com / admin123")
     print(f"   - Created {len(sample_donations)} approved donor applications")
     print(f"   - Created {len(sample_requirements)} hospital requirements")
+    print(f"   - Created {len(sample_notifications)} sample notifications")
     print(f"   - Created sample contact history and shortlist entries")

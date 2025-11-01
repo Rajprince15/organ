@@ -16,10 +16,28 @@ from auth_routes import router as auth_router
 from models import (
     DonationApplication, DonationApplicationCreate, DonationApplicationUpdate,
     HospitalRequirement, HospitalRequirementCreate, HospitalRequirementUpdate,
-    ContactHistory, ContactHistoryCreate, Shortlist, ShortlistCreate
+    ContactHistory, ContactHistoryCreate, Shortlist, ShortlistCreate,
+    Notification, NotificationCreate
 )
 from auth_utils import get_current_user
 from fastapi import Depends, HTTPException
+from matching_service import (
+    match_donors_for_requirement,
+    match_requirements_for_donor
+)
+from notification_service import (
+    create_notification,
+    create_match_notification_for_hospital,
+    create_match_notification_for_donor,
+    create_status_change_notification,
+    create_contact_notification_for_donor,
+    create_new_requirement_notification,
+    mark_notification_as_read,
+    mark_all_notifications_as_read,
+    get_user_notifications,
+    get_unread_count,
+    delete_notification
+)
 
 
 ROOT_DIR = Path(__file__).parent
@@ -143,6 +161,8 @@ async def update_donation_application(
     if not application:
         raise HTTPException(status_code=404, detail="Donation application not found")
     
+    old_status = application.get("status")
+    
     # Update only provided fields
     update_dict = {k: v for k, v in updates.model_dump().items() if v is not None}
     update_dict["updated_at"] = datetime.utcnow()
@@ -157,6 +177,19 @@ async def update_donation_application(
     
     # Fetch and return updated application
     updated_app = await db.donation_applications.find_one({"id": application_id})
+    
+    # Send notification if status changed
+    new_status = update_dict.get("status")
+    if new_status and new_status != old_status:
+        await create_status_change_notification(
+            db=db,
+            user_id=current_user["id"],
+            status_type="Donation Application",
+            old_status=old_status,
+            new_status=new_status,
+            item_name="donation application"
+        )
+    
     return DonationApplication(**updated_app)
 
 @api_router.delete("/donations/{application_id}")
@@ -196,6 +229,28 @@ async def create_hospital_requirement(
     
     req_obj = HospitalRequirement(**req_dict)
     await db.hospital_requirements.insert_one(req_obj.model_dump())
+    
+    # Auto-match donors and send notifications
+    all_donors = await db.donation_applications.find({"status": "approved"}).to_list(10000)
+    matches = match_donors_for_requirement(req_obj.model_dump(), all_donors)
+    
+    if len(matches) > 0:
+        # Notify hospital about matches
+        await create_match_notification_for_hospital(
+            db=db,
+            hospital_id=current_user["id"],
+            requirement_id=req_obj.id,
+            match_count=len(matches),
+            requirement_details=req_obj.model_dump()
+        )
+        
+        # Notify top matching donors about new requirement
+        for donor, score, breakdown in matches[:5]:  # Notify top 5 matches
+            await create_new_requirement_notification(
+                db=db,
+                donor_id=donor["donor_id"],
+                requirement_details=req_obj.model_dump()
+            )
     
     return req_obj
 
@@ -377,6 +432,10 @@ async def create_contact_history(
     if not donor:
         raise HTTPException(status_code=404, detail="Donor not found")
     
+    # Get hospital name
+    hospital = await db.users.find_one({"id": current_user["id"]})
+    hospital_name = hospital.get("name", "A hospital") if hospital else "A hospital"
+    
     # Create contact history
     contact_dict = contact_data.model_dump()
     contact_dict["hospital_id"] = current_user["id"]
@@ -385,6 +444,14 @@ async def create_contact_history(
     
     contact_obj = ContactHistory(**contact_dict)
     await db.contact_history.insert_one(contact_obj.model_dump())
+    
+    # Notify donor about contact
+    await create_contact_notification_for_donor(
+        db=db,
+        donor_id=contact_data.donor_id,
+        hospital_name=hospital_name,
+        contact_method=contact_data.contact_method
+    )
     
     return contact_obj
 
@@ -554,6 +621,222 @@ async def export_donors(
         media_type="text/csv",
         headers={"Content-Disposition": f"attachment; filename=donors_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"}
     )
+
+# Notification Routes
+@api_router.get("/notifications/me", response_model=List[Notification])
+async def get_my_notifications(
+    current_user: dict = Depends(get_current_user),
+    unread_only: bool = False,
+    limit: int = 50
+):
+    """Get notifications for the current user"""
+    notifications = await get_user_notifications(db, current_user["id"], unread_only, limit)
+    return notifications
+
+@api_router.get("/notifications/unread-count")
+async def get_unread_notification_count(
+    current_user: dict = Depends(get_current_user)
+):
+    """Get count of unread notifications"""
+    count = await get_unread_count(db, current_user["id"])
+    return {"count": count}
+
+@api_router.put("/notifications/{notification_id}/read")
+async def mark_notification_read(
+    notification_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Mark a notification as read"""
+    success = await mark_notification_as_read(db, notification_id, current_user["id"])
+    if not success:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    return {"message": "Notification marked as read"}
+
+@api_router.put("/notifications/mark-all-read")
+async def mark_all_read(
+    current_user: dict = Depends(get_current_user)
+):
+    """Mark all notifications as read"""
+    count = await mark_all_notifications_as_read(db, current_user["id"])
+    return {"message": f"Marked {count} notifications as read"}
+
+@api_router.delete("/notifications/{notification_id}")
+async def delete_notification_endpoint(
+    notification_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete a notification"""
+    success = await delete_notification(db, notification_id, current_user["id"])
+    if not success:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    return {"message": "Notification deleted"}
+
+# Smart Matching Routes
+@api_router.get("/matches/donors/{requirement_id}")
+async def get_matched_donors(
+    requirement_id: str,
+    current_user: dict = Depends(get_current_user),
+    limit: int = 20
+):
+    """Get matched donors for a specific hospital requirement"""
+    if current_user.get("role") != "hospital":
+        raise HTTPException(status_code=403, detail="Only hospitals can access donor matches")
+    
+    # Get the requirement
+    requirement = await db.hospital_requirements.find_one({
+        "id": requirement_id,
+        "hospital_id": current_user["id"]
+    })
+    
+    if not requirement:
+        raise HTTPException(status_code=404, detail="Requirement not found")
+    
+    # Get all approved donors
+    all_donors = await db.donation_applications.find({"status": "approved"}).to_list(10000)
+    
+    # Match and score donors
+    matches = match_donors_for_requirement(requirement, all_donors)
+    
+    # Limit results
+    matches = matches[:limit]
+    
+    # Format response
+    result = []
+    for donor, score, breakdown in matches:
+        result.append({
+            "donor": DonationApplication(**donor),
+            "match_score": score,
+            "score_breakdown": breakdown
+        })
+    
+    return {
+        "requirement_id": requirement_id,
+        "matches": result,
+        "total_matches": len(result)
+    }
+
+@api_router.get("/matches/requirements/me")
+async def get_matched_requirements(
+    current_user: dict = Depends(get_current_user),
+    limit: int = 20
+):
+    """Get matched hospital requirements for current donor"""
+    if current_user.get("role") != "donor":
+        raise HTTPException(status_code=403, detail="Only donors can access requirement matches")
+    
+    # Get donor's application
+    donor_app = await db.donation_applications.find_one({"donor_id": current_user["id"]})
+    
+    if not donor_app:
+        return {
+            "matches": [],
+            "total_matches": 0,
+            "message": "Please complete your donation application first"
+        }
+    
+    # Only match if application is approved
+    if donor_app.get("status") != "approved":
+        return {
+            "matches": [],
+            "total_matches": 0,
+            "message": "Your application is pending approval"
+        }
+    
+    # Get all active requirements
+    all_requirements = await db.hospital_requirements.find({"status": "active"}).to_list(10000)
+    
+    # Match and score requirements
+    matches = match_requirements_for_donor(donor_app, all_requirements)
+    
+    # Limit results
+    matches = matches[:limit]
+    
+    # Format response
+    result = []
+    for requirement, score, breakdown in matches:
+        result.append({
+            "requirement": HospitalRequirement(**requirement),
+            "match_score": score,
+            "score_breakdown": breakdown
+        })
+    
+    return {
+        "matches": result,
+        "total_matches": len(result)
+    }
+
+@api_router.post("/matches/refresh")
+async def refresh_matches(
+    current_user: dict = Depends(get_current_user)
+):
+    """Manually trigger match refresh and send notifications if new matches found"""
+    
+    if current_user.get("role") == "hospital":
+        # Get all hospital's active requirements
+        requirements = await db.hospital_requirements.find({
+            "hospital_id": current_user["id"],
+            "status": "active"
+        }).to_list(1000)
+        
+        if not requirements:
+            return {"message": "No active requirements to match", "new_matches": 0}
+        
+        # Get all approved donors
+        all_donors = await db.donation_applications.find({"status": "approved"}).to_list(10000)
+        
+        total_new_matches = 0
+        for requirement in requirements:
+            matches = match_donors_for_requirement(requirement, all_donors)
+            
+            if len(matches) > 0:
+                # Create notification for new matches
+                await create_match_notification_for_hospital(
+                    db=db,
+                    hospital_id=current_user["id"],
+                    requirement_id=requirement["id"],
+                    match_count=len(matches),
+                    requirement_details=requirement
+                )
+                total_new_matches += len(matches)
+        
+        return {
+            "message": "Match refresh completed",
+            "requirements_checked": len(requirements),
+            "new_matches": total_new_matches
+        }
+    
+    elif current_user.get("role") == "donor":
+        # Get donor's application
+        donor_app = await db.donation_applications.find_one({"donor_id": current_user["id"]})
+        
+        if not donor_app:
+            raise HTTPException(status_code=404, detail="Please complete your donation application first")
+        
+        if donor_app.get("status") != "approved":
+            raise HTTPException(status_code=400, detail="Your application is pending approval")
+        
+        # Get all active requirements
+        all_requirements = await db.hospital_requirements.find({"status": "active"}).to_list(10000)
+        
+        # Match requirements
+        matches = match_requirements_for_donor(donor_app, all_requirements)
+        
+        if len(matches) > 0:
+            # Create notification for new matches
+            await create_match_notification_for_donor(
+                db=db,
+                donor_id=current_user["id"],
+                match_count=len(matches),
+                donor_organs=donor_app.get("organs", [])
+            )
+        
+        return {
+            "message": "Match refresh completed",
+            "new_matches": len(matches)
+        }
+    
+    else:
+        raise HTTPException(status_code=403, detail="Invalid user role")
 
 # Include the router in the main app
 app.include_router(api_router)

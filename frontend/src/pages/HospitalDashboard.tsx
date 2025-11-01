@@ -5,6 +5,7 @@ import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { HospitalMatchedDonors } from "@/components/HospitalMatchedDonors";
 import { 
   Building2, 
   Users, 
@@ -339,6 +340,20 @@ const HospitalDashboard = () => {
                         <p className="text-sm text-muted-foreground">{req.medical_history}</p>
                       </div>
                     </div>
+
+                    {/* Matched Donors Section */}
+                    {req.status === 'active' && (
+                      <div className="mt-6">
+                        <HospitalMatchedDonors
+                          requirementId={req.id}
+                          requirementDetails={{
+                            organ_required: req.organ_required,
+                            blood_group: req.blood_group,
+                            urgency_level: req.urgency_level
+                          }}
+                        />
+                      </div>
+                    )}
 
                     <div className="mt-4 pt-4 border-t flex justify-between items-center text-xs text-muted-foreground">
                       <span>Posted on: {new Date(req.created_at).toLocaleDateString()}</span>
