@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,9 +9,16 @@ import Footer from "@/components/Footer";
 import OrganDonationChatbot from "@/components/OrganDonationChatbot";
 import { Heart, Shield, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001';
 
 const DonorRegistration = () => {
   const { toast } = useToast();
+  const { user, token } = useAuth();
+  const navigate = useNavigate();
+  const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -26,8 +33,38 @@ const DonorRegistration = () => {
     "Heart", "Lungs", "Liver", "Kidneys", "Pancreas", "Intestines", "Corneas", "Skin", "Bone", "Heart Valves"
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    // Redirect to dashboard if donor already has an application
+    if (user && user.role === "donor") {
+      checkExistingApplication();
+    }
+  }, [user]);
+
+  const checkExistingApplication = async () => {
+    if (!token) return;
+    
+    try {
+      const response = await fetch(`${API_URL}/api/donations/me`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data) {
+          // User already has an application, redirect to dashboard
+          navigate("/donor-dashboard");
+        }
+      }
+    } catch (error) {
+      console.error('Failed to check existing application:', error);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (!formData.consent) {
       toast({
         title: "Consent Required",
@@ -36,11 +73,67 @@ const DonorRegistration = () => {
       });
       return;
     }
-    toast({
-      title: "Registration Submitted",
-      description: "Thank you for registering as an organ donor. Your information has been securely saved.",
-    });
-    console.log("Form submitted:", formData);
+
+    if (formData.organs.length === 0) {
+      toast({
+        title: "Select Organs",
+        description: "Please select at least one organ to donate.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if user is logged in as donor
+    if (!user || user.role !== "donor") {
+      toast({
+        title: "Authentication Required",
+        description: "Please login as a donor to register your donation application.",
+        variant: "destructive",
+      });
+      navigate("/login");
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      const response = await fetch(`${API_URL}/api/donations`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          full_name: formData.fullName,
+          email: formData.email,
+          phone: formData.phone,
+          date_of_birth: formData.dateOfBirth,
+          blood_group: formData.bloodGroup,
+          organs: formData.organs,
+          consent: formData.consent
+        })
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Registration Submitted",
+          description: "Thank you for registering as an organ donor. Your information has been securely saved.",
+        });
+        // Redirect to dashboard
+        navigate("/donor-dashboard");
+      } else {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to submit application');
+      }
+    } catch (error: any) {
+      toast({
+        title: "Submission Failed",
+        description: error.message || "Failed to submit your application. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const toggleOrgan = (organ: string) => {
@@ -205,9 +298,10 @@ const DonorRegistration = () => {
                           ? "border-primary bg-primary/10"
                           : "border-border hover:border-primary/50"
                       }`}
+                      data-testid={`organ-${organ.toLowerCase()}`}
                     >
-                      <div className="flex items-center gap-2">
-                        <Checkbox checked={formData.organs.includes(organ)} />
+                      <div className="flex items-center gap-2 pointer-events-none">
+                        <Checkbox checked={formData.organs.includes(organ)} readOnly />
                         <span className="text-sm font-medium">{organ}</span>
                       </div>
                     </div>
@@ -254,9 +348,11 @@ const DonorRegistration = () => {
                 <Button
                   type="submit"
                   size="lg"
+                  disabled={submitting}
                   className="w-full bg-gradient-primary text-primary-foreground shadow-medium hover:shadow-glow"
+                  data-testid="complete-registration-button"
                 >
-                  Complete Registration
+                  {submitting ? "Submitting..." : "Complete Registration"}
                   <Heart className="ml-2 h-5 w-5" />
                 </Button>
                 <p className="text-xs text-center text-muted-foreground mt-4">

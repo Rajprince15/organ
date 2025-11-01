@@ -58,6 +58,20 @@ const Navigation = () => {
             
             {user ? (
               <>
+                {/* Show Dashboard button for donors */}
+                {user.role === 'donor' && (
+                  <Link to="/donor-dashboard">
+                    <Button 
+                      variant="outline" 
+                      className="border-secondary text-secondary hover:bg-secondary hover:text-secondary-foreground transition-smooth"
+                      data-testid="nav-donor-dashboard-button"
+                    >
+                      <User className="h-4 w-4 mr-2" />
+                      My Dashboard
+                    </Button>
+                  </Link>
+                )}
+                
                 {/* Show Donate button only for donors and admins */}
                 {(user.role === 'donor' || user.role === 'admin') && (
                   <Link to="/donate">
@@ -166,6 +180,14 @@ const Navigation = () => {
                     <div className="text-sm text-muted-foreground px-2 py-1">
                       Logged in as {user.name} ({user.role})
                     </div>
+                    {user.role === 'donor' && (
+                      <Link to="/donor-dashboard" onClick={() => setIsOpen(false)}>
+                        <Button variant="outline" className="w-full border-secondary text-secondary hover:bg-secondary hover:text-secondary-foreground">
+                          <User className="h-4 w-4 mr-2" />
+                          My Dashboard
+                        </Button>
+                      </Link>
+                    )}
                     {(user.role === 'donor' || user.role === 'admin') && (
                       <Link to="/donate" onClick={() => setIsOpen(false)}>
                         <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary hover:text-primary-foreground">

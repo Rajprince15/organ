@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import DonorRegistration from "./pages/DonorRegistration";
+import DonorDashboard from "./pages/DonorDashboard";
 import RecipientPortal from "./pages/RecipientPortal";
 import Community from "./pages/Community";
 import About from "./pages/About";
@@ -31,6 +32,7 @@ const App = () => (
             <Route path="/register" element={<Register />} />
             <Route path="/donate" element={<DonorRegistration />} />
             <Route path="/donor-registration" element={<DonorRegistration />} />
+            <Route path="/donor-dashboard" element={<DonorDashboard />} />
             <Route path="/recipient-portal" element={<RecipientPortal />} />
             <Route path="/community" element={<Community />} />
             <Route path="/events" element={<Events />} />

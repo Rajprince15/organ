@@ -3,6 +3,8 @@ from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from typing import Optional
 import os
+from fastapi import HTTPException, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -38,3 +40,20 @@ def decode_access_token(token: str) -> Optional[dict]:
         return payload
     except JWTError:
         return None
+
+# Security scheme for FastAPI
+security = HTTPBearer()
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
+    """Get current user from JWT token."""
+    token = credentials.credentials
+    payload = decode_access_token(token)
+    
+    if payload is None:
+        raise HTTPException(status_code=401, detail="Invalid authentication credentials")
+    
+    # Normalize payload to include 'id' field from 'sub'
+    if 'sub' in payload and 'id' not in payload:
+        payload['id'] = payload['sub']
+    
+    return payload

@@ -10,6 +10,9 @@ from typing import List
 import uuid
 from datetime import datetime
 from auth_routes import router as auth_router
+from models import DonationApplication, DonationApplicationCreate, DonationApplicationUpdate
+from auth_utils import get_current_user
+from fastapi import Depends, HTTPException
 
 
 ROOT_DIR = Path(__file__).parent
@@ -77,6 +80,98 @@ async def get_status_checks():
 
 # Include auth router
 api_router.include_router(auth_router)
+
+# Donation Application Routes
+@api_router.post("/donations", response_model=DonationApplication)
+async def create_donation_application(
+    application: DonationApplicationCreate,
+    current_user: dict = Depends(get_current_user),
+    request: Request = None
+):
+    """Create a new donation application for the current donor"""
+    if current_user.get("role") != "donor":
+        raise HTTPException(status_code=403, detail="Only donors can create donation applications")
+    
+    # Check if donor already has an application
+    existing = await db.donation_applications.find_one({"donor_id": current_user["id"]})
+    if existing:
+        raise HTTPException(status_code=400, detail="You already have a donation application. Please edit or delete it first.")
+    
+    # Create new application
+    app_dict = application.model_dump()
+    app_dict["donor_id"] = current_user["id"]
+    app_dict["donor_email"] = current_user["email"]
+    
+    app_obj = DonationApplication(**app_dict)
+    await db.donation_applications.insert_one(app_obj.model_dump())
+    
+    return app_obj
+
+@api_router.get("/donations/me", response_model=DonationApplication | None)
+async def get_my_donation_application(
+    current_user: dict = Depends(get_current_user)
+):
+    """Get the current donor's donation application"""
+    if current_user.get("role") != "donor":
+        raise HTTPException(status_code=403, detail="Only donors can access donation applications")
+    
+    application = await db.donation_applications.find_one({"donor_id": current_user["id"]})
+    if not application:
+        return None
+    
+    return DonationApplication(**application)
+
+@api_router.put("/donations/{application_id}", response_model=DonationApplication)
+async def update_donation_application(
+    application_id: str,
+    updates: DonationApplicationUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update donor's donation application"""
+    if current_user.get("role") != "donor":
+        raise HTTPException(status_code=403, detail="Only donors can update donation applications")
+    
+    # Check if application exists and belongs to user
+    application = await db.donation_applications.find_one({"id": application_id, "donor_id": current_user["id"]})
+    if not application:
+        raise HTTPException(status_code=404, detail="Donation application not found")
+    
+    # Update only provided fields
+    update_dict = {k: v for k, v in updates.model_dump().items() if v is not None}
+    update_dict["updated_at"] = datetime.utcnow()
+    
+    result = await db.donation_applications.update_one(
+        {"id": application_id},
+        {"$set": update_dict}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Failed to update application")
+    
+    # Fetch and return updated application
+    updated_app = await db.donation_applications.find_one({"id": application_id})
+    return DonationApplication(**updated_app)
+
+@api_router.delete("/donations/{application_id}")
+async def delete_donation_application(
+    application_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete donor's donation application"""
+    if current_user.get("role") != "donor":
+        raise HTTPException(status_code=403, detail="Only donors can delete donation applications")
+    
+    # Check if application exists and belongs to user
+    application = await db.donation_applications.find_one({"id": application_id, "donor_id": current_user["id"]})
+    if not application:
+        raise HTTPException(status_code=404, detail="Donation application not found")
+    
+    result = await db.donation_applications.delete_one({"id": application_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Failed to delete application")
+    
+    return {"message": "Donation application deleted successfully"}
 
 # Include the router in the main app
 app.include_router(api_router)
