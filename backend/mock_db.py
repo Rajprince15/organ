@@ -163,11 +163,16 @@ def seed_mock_data(db: MockDatabase):
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
     
     # Create test users with fixed IDs for reference
-    donor_id = str(uuid.uuid4())
+    donor_id_1 = str(uuid.uuid4())
+    donor_id_2 = str(uuid.uuid4())
+    donor_id_3 = str(uuid.uuid4())
+    donor_id_4 = str(uuid.uuid4())
+    donor_id_5 = str(uuid.uuid4())
+    hospital_id = str(uuid.uuid4())
     
     test_users = [
         {
-            "id": donor_id,
+            "id": donor_id_1,
             "email": "donor@organconnect.com",
             "hashed_password": pwd_context.hash("donor123"),
             "role": "donor",
@@ -180,7 +185,59 @@ def seed_mock_data(db: MockDatabase):
             "updated_at": datetime.utcnow()
         },
         {
-            "id": str(uuid.uuid4()),
+            "id": donor_id_2,
+            "email": "sarah.wilson@email.com",
+            "hashed_password": pwd_context.hash("donor123"),
+            "role": "donor",
+            "name": "Sarah Wilson",
+            "mobile": "+1234567893",
+            "age": 28,
+            "mobile_verified": True,
+            "is_active": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": donor_id_3,
+            "email": "michael.chen@email.com",
+            "hashed_password": pwd_context.hash("donor123"),
+            "role": "donor",
+            "name": "Michael Chen",
+            "mobile": "+1234567894",
+            "age": 35,
+            "mobile_verified": True,
+            "is_active": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": donor_id_4,
+            "email": "emma.johnson@email.com",
+            "hashed_password": pwd_context.hash("donor123"),
+            "role": "donor",
+            "name": "Emma Johnson",
+            "mobile": "+1234567895",
+            "age": 42,
+            "mobile_verified": True,
+            "is_active": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": donor_id_5,
+            "email": "david.patel@email.com",
+            "hashed_password": pwd_context.hash("donor123"),
+            "role": "donor",
+            "name": "David Patel",
+            "mobile": "+1234567896",
+            "age": 31,
+            "mobile_verified": True,
+            "is_active": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": hospital_id,
             "email": "hospital@organconnect.com",
             "hashed_password": pwd_context.hash("hospital123"),
             "role": "hospital",
@@ -214,28 +271,136 @@ def seed_mock_data(db: MockDatabase):
         doc_id = user['id']
         db.users._data[doc_id] = user.copy()
     
-    # Create sample donation application for test donor
-    sample_donation = {
-        "id": str(uuid.uuid4()),
-        "donor_id": donor_id,
-        "donor_email": "donor@organconnect.com",
-        "full_name": "John Donor",
-        "email": "donor@organconnect.com",
-        "phone": "+1234567890",
-        "date_of_birth": "1994-01-15",
-        "blood_group": "O+",
-        "organs": ["Heart", "Kidneys", "Liver", "Corneas"],
-        "consent": True,
-        "status": "approved",
-        "created_at": datetime.utcnow(),
-        "updated_at": datetime.utcnow()
-    }
+    # Create multiple sample donation applications with approved status
+    sample_donations = [
+        {
+            "id": str(uuid.uuid4()),
+            "donor_id": donor_id_1,
+            "donor_email": "donor@organconnect.com",
+            "full_name": "John Donor",
+            "email": "donor@organconnect.com",
+            "phone": "+1234567890",
+            "date_of_birth": "1994-01-15",
+            "blood_group": "O+",
+            "organs": ["Heart", "Kidneys", "Liver", "Corneas"],
+            "consent": True,
+            "status": "approved",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "donor_id": donor_id_2,
+            "donor_email": "sarah.wilson@email.com",
+            "full_name": "Sarah Wilson",
+            "email": "sarah.wilson@email.com",
+            "phone": "+1234567893",
+            "date_of_birth": "1996-05-22",
+            "blood_group": "A+",
+            "organs": ["Kidneys", "Liver", "Pancreas"],
+            "consent": True,
+            "status": "approved",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "donor_id": donor_id_3,
+            "donor_email": "michael.chen@email.com",
+            "full_name": "Michael Chen",
+            "email": "michael.chen@email.com",
+            "phone": "+1234567894",
+            "date_of_birth": "1989-08-10",
+            "blood_group": "B+",
+            "organs": ["Heart", "Lungs", "Corneas"],
+            "consent": True,
+            "status": "approved",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "donor_id": donor_id_4,
+            "donor_email": "emma.johnson@email.com",
+            "full_name": "Emma Johnson",
+            "email": "emma.johnson@email.com",
+            "phone": "+1234567895",
+            "date_of_birth": "1982-11-30",
+            "blood_group": "AB+",
+            "organs": ["Liver", "Kidneys", "Heart Valves", "Skin"],
+            "consent": True,
+            "status": "approved",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "donor_id": donor_id_5,
+            "donor_email": "david.patel@email.com",
+            "full_name": "David Patel",
+            "email": "david.patel@email.com",
+            "phone": "+1234567896",
+            "date_of_birth": "1993-03-18",
+            "blood_group": "O-",
+            "organs": ["Heart", "Kidneys", "Lungs", "Liver", "Corneas", "Pancreas"],
+            "consent": True,
+            "status": "approved",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }
+    ]
     
-    # Insert donation application
-    donation_id = sample_donation['id']
-    db.donation_applications._data[donation_id] = sample_donation.copy()
+    # Insert donation applications
+    for donation in sample_donations:
+        donation_id = donation['id']
+        db.donation_applications._data[donation_id] = donation.copy()
+    
+    # Create sample hospital requirements
+    sample_requirements = [
+        {
+            "id": str(uuid.uuid4()),
+            "hospital_id": hospital_id,
+            "hospital_name": "City Hospital",
+            "patient_name": "Robert Anderson",
+            "age": 45,
+            "blood_group": "O+",
+            "organ_required": "Heart",
+            "urgency_level": "critical",
+            "doctor_name": "Dr. Emily Stevens",
+            "contact_number": "+1234567897",
+            "email": "emergency@cityhospital.com",
+            "medical_history": "Severe heart failure, previous MI, requires urgent transplant",
+            "status": "active",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "hospital_id": hospital_id,
+            "hospital_name": "City Hospital",
+            "patient_name": "Lisa Martinez",
+            "age": 38,
+            "blood_group": "A+",
+            "organ_required": "Kidneys",
+            "urgency_level": "high",
+            "doctor_name": "Dr. James Wilson",
+            "contact_number": "+1234567898",
+            "email": "nephrology@cityhospital.com",
+            "medical_history": "End-stage renal disease, on dialysis for 2 years",
+            "status": "active",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }
+    ]
+    
+    # Insert hospital requirements
+    for requirement in sample_requirements:
+        req_id = requirement['id']
+        db.hospital_requirements._data[req_id] = requirement.copy()
     
     print("Mock database seeded with test users:")
     print("   - donor@organconnect.com / donor123 (with donation application)")
-    print("   - hospital@organconnect.com / hospital123")
+    print("   - hospital@organconnect.com / hospital123 (with requirements)")
     print("   - admin@organconnect.com / admin123")
+    print(f"   - Created {len(sample_donations)} approved donor applications")
+    print(f"   - Created {len(sample_requirements)} hospital requirements")

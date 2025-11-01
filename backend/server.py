@@ -10,7 +10,10 @@ from typing import List
 import uuid
 from datetime import datetime
 from auth_routes import router as auth_router
-from models import DonationApplication, DonationApplicationCreate, DonationApplicationUpdate
+from models import (
+    DonationApplication, DonationApplicationCreate, DonationApplicationUpdate,
+    HospitalRequirement, HospitalRequirementCreate, HospitalRequirementUpdate
+)
 from auth_utils import get_current_user
 from fastapi import Depends, HTTPException
 
@@ -172,6 +175,127 @@ async def delete_donation_application(
         raise HTTPException(status_code=404, detail="Failed to delete application")
     
     return {"message": "Donation application deleted successfully"}
+
+# Hospital Requirement Routes
+@api_router.post("/hospital-requirements", response_model=HospitalRequirement)
+async def create_hospital_requirement(
+    requirement: HospitalRequirementCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new hospital requirement"""
+    if current_user.get("role") != "hospital":
+        raise HTTPException(status_code=403, detail="Only hospitals can create requirements")
+    
+    # Create new requirement
+    req_dict = requirement.model_dump()
+    req_dict["hospital_id"] = current_user["id"]
+    
+    req_obj = HospitalRequirement(**req_dict)
+    await db.hospital_requirements.insert_one(req_obj.model_dump())
+    
+    return req_obj
+
+@api_router.get("/hospital-requirements/me", response_model=List[HospitalRequirement])
+async def get_my_hospital_requirements(
+    current_user: dict = Depends(get_current_user)
+):
+    """Get all requirements posted by the current hospital"""
+    if current_user.get("role") != "hospital":
+        raise HTTPException(status_code=403, detail="Only hospitals can access requirements")
+    
+    requirements = await db.hospital_requirements.find({"hospital_id": current_user["id"]}).to_list(1000)
+    return [HospitalRequirement(**req) for req in requirements]
+
+@api_router.put("/hospital-requirements/{requirement_id}", response_model=HospitalRequirement)
+async def update_hospital_requirement(
+    requirement_id: str,
+    updates: HospitalRequirementUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update hospital requirement"""
+    if current_user.get("role") != "hospital":
+        raise HTTPException(status_code=403, detail="Only hospitals can update requirements")
+    
+    # Check if requirement exists and belongs to hospital
+    requirement = await db.hospital_requirements.find_one({"id": requirement_id, "hospital_id": current_user["id"]})
+    if not requirement:
+        raise HTTPException(status_code=404, detail="Requirement not found")
+    
+    # Update only provided fields
+    update_dict = {k: v for k, v in updates.model_dump().items() if v is not None}
+    update_dict["updated_at"] = datetime.utcnow()
+    
+    result = await db.hospital_requirements.update_one(
+        {"id": requirement_id},
+        {"$set": update_dict}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Failed to update requirement")
+    
+    # Fetch and return updated requirement
+    updated_req = await db.hospital_requirements.find_one({"id": requirement_id})
+    return HospitalRequirement(**updated_req)
+
+@api_router.delete("/hospital-requirements/{requirement_id}")
+async def delete_hospital_requirement(
+    requirement_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete hospital requirement"""
+    if current_user.get("role") != "hospital":
+        raise HTTPException(status_code=403, detail="Only hospitals can delete requirements")
+    
+    # Check if requirement exists and belongs to hospital
+    requirement = await db.hospital_requirements.find_one({"id": requirement_id, "hospital_id": current_user["id"]})
+    if not requirement:
+        raise HTTPException(status_code=404, detail="Requirement not found")
+    
+    result = await db.hospital_requirements.delete_one({"id": requirement_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Failed to delete requirement")
+    
+    return {"message": "Requirement deleted successfully"}
+
+# Donor List Routes for Hospitals
+@api_router.get("/donations/all")
+async def get_all_donations(
+    current_user: dict = Depends(get_current_user),
+    organ: str = None,
+    page: int = 1,
+    limit: int = 10
+):
+    """Get all approved donor applications with pagination and filtering"""
+    if current_user.get("role") != "hospital":
+        raise HTTPException(status_code=403, detail="Only hospitals can view all donation applications")
+    
+    # Get all approved donors
+    all_applications = await db.donation_applications.find({"status": "approved"}).to_list(10000)
+    
+    # Filter by organ if specified
+    if organ:
+        filtered_applications = [
+            app for app in all_applications 
+            if organ in app.get("organs", [])
+        ]
+    else:
+        filtered_applications = all_applications
+    
+    # Calculate pagination
+    total = len(filtered_applications)
+    start_idx = (page - 1) * limit
+    end_idx = start_idx + limit
+    
+    paginated_applications = filtered_applications[start_idx:end_idx]
+    
+    return {
+        "applications": [DonationApplication(**app) for app in paginated_applications],
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "total_pages": (total + limit - 1) // limit
+    }
 
 # Include the router in the main app
 app.include_router(api_router)

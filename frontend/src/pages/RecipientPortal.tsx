@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,9 +9,16 @@ import Footer from "@/components/Footer";
 import OrganDonationChatbot from "@/components/OrganDonationChatbot";
 import { Activity, AlertCircle, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
+
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 const RecipientPortal = () => {
   const { toast } = useToast();
+  const { user, token } = useAuth();
+  const navigate = useNavigate();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     patientName: "",
     age: "",
@@ -25,13 +32,90 @@ const RecipientPortal = () => {
     medicalHistory: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!user || user.role !== "hospital") {
+      toast({
+        title: "Access Denied",
+        description: "Only hospitals can post requirements. Please login with a hospital account.",
+        variant: "destructive",
+      });
+      navigate("/login");
+    }
+  }, [user, navigate]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast({
-      title: "Requirement Posted Successfully",
-      description: "Your organ requirement has been submitted. Our AI will start matching immediately.",
-    });
-    console.log("Recipient form submitted:", formData);
+    
+    if (!token) {
+      toast({
+        title: "Authentication Required",
+        description: "Please login to post requirements.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch(`${API_URL}/api/hospital-requirements`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          patient_name: formData.patientName,
+          age: parseInt(formData.age),
+          blood_group: formData.bloodGroup,
+          organ_required: formData.organRequired,
+          urgency_level: formData.urgencyLevel,
+          hospital_name: formData.hospitalName,
+          doctor_name: formData.doctorName,
+          contact_number: formData.contactNumber,
+          email: formData.email,
+          medical_history: formData.medicalHistory
+        })
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Requirement Posted Successfully",
+          description: "Your organ requirement has been submitted. You can view it in your dashboard.",
+        });
+        
+        // Reset form
+        setFormData({
+          patientName: "",
+          age: "",
+          bloodGroup: "",
+          organRequired: "",
+          urgencyLevel: "",
+          hospitalName: "",
+          doctorName: "",
+          contactNumber: "",
+          email: "",
+          medicalHistory: "",
+        });
+
+        // Navigate to dashboard after a brief delay
+        setTimeout(() => {
+          navigate("/hospital-dashboard");
+        }, 1500);
+      } else {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to post requirement');
+      }
+    } catch (error) {
+      console.error('Failed to post requirement:', error);
+      toast({
+        title: "Submission Failed",
+        description: error instanceof Error ? error.message : "Failed to post requirement. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -255,9 +339,11 @@ const RecipientPortal = () => {
                 <Button
                   type="submit"
                   size="lg"
+                  disabled={isSubmitting}
                   className="w-full bg-gradient-secondary text-secondary-foreground shadow-medium hover:shadow-glow"
+                  data-testid="submit-requirement-button"
                 >
-                  Submit Requirement & Start Matching
+                  {isSubmitting ? "Submitting..." : "Submit Requirement & Start Matching"}
                   <Activity className="ml-2 h-5 w-5" />
                 </Button>
                 <p className="text-xs text-center text-muted-foreground mt-4">

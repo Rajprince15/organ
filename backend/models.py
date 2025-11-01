@@ -83,3 +83,45 @@ class DonationApplicationUpdate(BaseModel):
     organs: Optional[list[str]] = None
     consent: Optional[bool] = None
     status: Optional[Literal["pending", "approved", "active", "cancelled"]] = None
+
+class HospitalRequirement(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    hospital_id: str
+    hospital_name: str
+    patient_name: str
+    age: int
+    blood_group: str
+    organ_required: str
+    urgency_level: Literal["critical", "high", "medium"]
+    doctor_name: str
+    contact_number: str
+    email: EmailStr
+    medical_history: str
+    status: Literal["active", "fulfilled", "cancelled"] = "active"
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class HospitalRequirementCreate(BaseModel):
+    patient_name: str
+    age: int
+    blood_group: str
+    organ_required: str
+    urgency_level: Literal["critical", "high", "medium"]
+    hospital_name: str
+    doctor_name: str
+    contact_number: str
+    email: EmailStr
+    medical_history: str
+
+class HospitalRequirementUpdate(BaseModel):
+    patient_name: Optional[str] = None
+    age: Optional[int] = None
+    blood_group: Optional[str] = None
+    organ_required: Optional[str] = None
+    urgency_level: Optional[Literal["critical", "high", "medium"]] = None
+    hospital_name: Optional[str] = None
+    doctor_name: Optional[str] = None
+    contact_number: Optional[str] = None
+    email: Optional[EmailStr] = None
+    medical_history: Optional[str] = None
+    status: Optional[Literal["active", "fulfilled", "cancelled"]] = None
