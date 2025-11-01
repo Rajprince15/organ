@@ -21,7 +21,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001';
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 interface DonationApplication {
   id: string;
@@ -485,9 +485,8 @@ const DonorDashboard = () => {
                   <h3 className="text-lg font-semibold mb-4">Organs to Donate *</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                     {organOptions.map((organ) => (
-                      <div
+                      <label
                         key={organ}
-                        onClick={() => toggleOrgan(organ)}
                         className={`p-3 border rounded-lg cursor-pointer transition-smooth ${
                           formData.organs.includes(organ)
                             ? "border-primary bg-primary/10"
@@ -496,10 +495,13 @@ const DonorDashboard = () => {
                         data-testid={`edit-organ-${organ.toLowerCase()}`}
                       >
                         <div className="flex items-center gap-2">
-                          <Checkbox checked={formData.organs.includes(organ)} />
-                          <span className="text-sm font-medium">{organ}</span>
+                          <Checkbox 
+                            checked={formData.organs.includes(organ)}
+                            onCheckedChange={() => toggleOrgan(organ)}
+                          />
+                          <span className="text-sm font-medium select-none">{organ}</span>
                         </div>
-                      </div>
+                      </label>
                     ))}
                   </div>
                 </div>

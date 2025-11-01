@@ -162,10 +162,12 @@ def seed_mock_data(db: MockDatabase):
     
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
     
-    # Create test users
+    # Create test users with fixed IDs for reference
+    donor_id = str(uuid.uuid4())
+    
     test_users = [
         {
-            "id": str(uuid.uuid4()),
+            "id": donor_id,
             "email": "donor@organconnect.com",
             "hashed_password": pwd_context.hash("donor123"),
             "role": "donor",
@@ -212,7 +214,28 @@ def seed_mock_data(db: MockDatabase):
         doc_id = user['id']
         db.users._data[doc_id] = user.copy()
     
+    # Create sample donation application for test donor
+    sample_donation = {
+        "id": str(uuid.uuid4()),
+        "donor_id": donor_id,
+        "donor_email": "donor@organconnect.com",
+        "full_name": "John Donor",
+        "email": "donor@organconnect.com",
+        "phone": "+1234567890",
+        "date_of_birth": "1994-01-15",
+        "blood_group": "O+",
+        "organs": ["Heart", "Kidneys", "Liver", "Corneas"],
+        "consent": True,
+        "status": "approved",
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow()
+    }
+    
+    # Insert donation application
+    donation_id = sample_donation['id']
+    db.donation_applications._data[donation_id] = sample_donation.copy()
+    
     print("Mock database seeded with test users:")
-    print("   - donor@organconnect.com / donor123")
+    print("   - donor@organconnect.com / donor123 (with donation application)")
     print("   - hospital@organconnect.com / hospital123")
     print("   - admin@organconnect.com / admin123")
