@@ -49,8 +49,19 @@ import {
   BookOpen,
   Flag,
   Eye,
-  Plus
+  Plus,
+  BarChart3,
+  Bell,
+  Settings as SettingsIcon
 } from "lucide-react";
+import { UserManagementTab } from "@/components/admin/UserManagementTab";
+import { AnalyticsDashboard } from "@/components/admin/AnalyticsDashboard";
+import { DonationApplicationsTab } from "@/components/admin/DonationApplicationsTab";
+import { ActivityFeed } from "@/components/admin/ActivityFeed";
+import { RequirementsManagementTab } from "@/components/admin/RequirementsManagementTab";
+import { BroadcastNotifications } from "@/components/admin/BroadcastNotifications";
+import { PlatformSettings } from "@/components/admin/PlatformSettings";
+import { AuditLogsTab } from "@/components/admin/AuditLogsTab";
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -564,10 +575,10 @@ const AdminDashboardEnhanced = () => {
 
           {/* Management Tabs */}
           <Tabs defaultValue="posts" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-2 lg:grid-cols-3">
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-11 gap-1">
               <TabsTrigger value="posts" data-testid="tab-posts">
                 <MessageSquare className="h-4 w-4 mr-2" />
-                Community Posts
+                Posts
               </TabsTrigger>
               <TabsTrigger value="events" data-testid="tab-events">
                 <Calendar className="h-4 w-4 mr-2" />
@@ -576,6 +587,38 @@ const AdminDashboardEnhanced = () => {
               <TabsTrigger value="resources" data-testid="tab-resources">
                 <BookOpen className="h-4 w-4 mr-2" />
                 Resources
+              </TabsTrigger>
+              <TabsTrigger value="users" data-testid="tab-users">
+                <Users className="h-4 w-4 mr-2" />
+                Users
+              </TabsTrigger>
+              <TabsTrigger value="donations" data-testid="tab-donations">
+                <Heart className="h-4 w-4 mr-2" />
+                Donations
+              </TabsTrigger>
+              <TabsTrigger value="requirements" data-testid="tab-requirements">
+                <Building2 className="h-4 w-4 mr-2" />
+                Requirements
+              </TabsTrigger>
+              <TabsTrigger value="analytics" data-testid="tab-analytics">
+                <BarChart3 className="h-4 w-4 mr-2" />
+                Analytics
+              </TabsTrigger>
+              <TabsTrigger value="activity" data-testid="tab-activity">
+                <Activity className="h-4 w-4 mr-2" />
+                Activity
+              </TabsTrigger>
+              <TabsTrigger value="notifications" data-testid="tab-notifications">
+                <Bell className="h-4 w-4 mr-2" />
+                Notifications
+              </TabsTrigger>
+              <TabsTrigger value="settings" data-testid="tab-settings">
+                <SettingsIcon className="h-4 w-4 mr-2" />
+                Settings
+              </TabsTrigger>
+              <TabsTrigger value="audit" data-testid="tab-audit">
+                <FileText className="h-4 w-4 mr-2" />
+                Audit Logs
               </TabsTrigger>
             </TabsList>
 
@@ -817,6 +860,96 @@ const AdminDashboardEnhanced = () => {
                   </div>
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            {/* Users Management Tab */}
+            <TabsContent value="users">
+              <Card>
+                <CardHeader>
+                  <CardTitle>User Management</CardTitle>
+                  <CardDescription>
+                    Manage all platform users - donors, hospitals, and admins
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <UserManagementTab token={token} />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Donation Applications Tab */}
+            <TabsContent value="donations">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Donation Applications</CardTitle>
+                  <CardDescription>
+                    Review and approve donor applications
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <DonationApplicationsTab token={token} />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Hospital Requirements Tab */}
+            <TabsContent value="requirements">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Hospital Requirements</CardTitle>
+                  <CardDescription>
+                    Monitor and manage organ requirements from hospitals
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <RequirementsManagementTab token={token} />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Analytics Dashboard Tab */}
+            <TabsContent value="analytics">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Analytics Dashboard</CardTitle>
+                  <CardDescription>
+                    Comprehensive platform analytics and insights
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <AnalyticsDashboard token={token} />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Activity Feed Tab */}
+            <TabsContent value="activity">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Activity Feed</CardTitle>
+                  <CardDescription>
+                    Real-time platform activity and user actions
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ActivityFeed token={token} />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Broadcast Notifications Tab */}
+            <TabsContent value="notifications">
+              <BroadcastNotifications token={token} />
+            </TabsContent>
+
+            {/* Platform Settings Tab */}
+            <TabsContent value="settings">
+              <PlatformSettings token={token} />
+            </TabsContent>
+
+            {/* Audit Logs Tab */}
+            <TabsContent value="audit">
+              <AuditLogsTab token={token} />
             </TabsContent>
           </Tabs>
         </div>
