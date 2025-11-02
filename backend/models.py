@@ -270,3 +270,39 @@ class ResourceUpdate(BaseModel):
     content: Optional[str] = None
     category: Optional[str] = None
     is_published: Optional[bool] = None
+
+# Activity Log Models
+class ActivityLog(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    user_name: str
+    user_role: str
+    activity_type: str  # registration, application_submitted, requirement_posted, match_made, contact_made, status_change
+    description: str
+    metadata: Optional[dict] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+# Audit Log Models  
+class AuditLog(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    admin_id: str
+    admin_name: str
+    action: str  # create, update, delete, login, logout, view
+    target_type: str  # user, donation, requirement, post, event, resource
+    target_id: Optional[str] = None
+    changes: Optional[dict] = None  # before/after values
+    ip_address: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+# Platform Settings Model
+class PlatformSettings(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    site_name: str = "Organ Donation Platform"
+    site_logo: Optional[str] = None
+    maintenance_mode: bool = False
+    public_registration_enabled: bool = True
+    email_service_enabled: bool = False
+    sms_service_enabled: bool = False
+    auto_archive_days: int = 365
+    updated_by: Optional[str] = None
+    updated_at: datetime = Field(default_factory=datetime.utcnow)

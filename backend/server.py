@@ -1784,6 +1784,229 @@ async def delete_resource_admin(
     
     return {"message": "Resource deleted successfully"}
 
+# ============================================
+# ENHANCED ADMIN ENDPOINTS
+# ============================================
+
+from admin_service import (
+    get_platform_analytics,
+    get_activity_logs,
+    get_audit_logs,
+    create_audit_log,
+    bulk_approve_donations,
+    bulk_reject_donations,
+    get_user_activity_timeline,
+    create_activity_log
+)
+
+# Advanced Analytics Endpoint
+@api_router.get("/admin/analytics/detailed")
+async def get_detailed_analytics(
+    current_user: dict = Depends(get_current_user)
+):
+    """Get comprehensive platform analytics with charts data"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    analytics = await get_platform_analytics(db)
+    return analytics
+
+# Activity Logs Endpoint
+@api_router.get("/admin/activity-logs")
+async def get_activity_logs_endpoint(
+    current_user: dict = Depends(get_current_user),
+    limit: int = 50,
+    activity_type: Optional[str] = None,
+    user_role: Optional[str] = None,
+    days: Optional[int] = None
+):
+    """Get activity logs with filtering"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    logs = await get_activity_logs(
+        db=db,
+        limit=limit,
+        activity_type=activity_type,
+        user_role=user_role,
+        days=days
+    )
+    
+    return {"logs": logs, "total": len(logs)}
+
+# Audit Logs Endpoint
+@api_router.get("/admin/audit-logs")
+async def get_audit_logs_endpoint(
+    current_user: dict = Depends(get_current_user),
+    limit: int = 100,
+    admin_id: Optional[str] = None,
+    action: Optional[str] = None,
+    target_type: Optional[str] = None
+):
+    """Get audit logs with filtering"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    logs = await get_audit_logs(
+        db=db,
+        limit=limit,
+        admin_id=admin_id,
+        action=action,
+        target_type=target_type
+    )
+    
+    return {"logs": logs, "total": len(logs)}
+
+# Bulk Approve Donations
+@api_router.post("/admin/donations/bulk-approve")
+async def bulk_approve_donations_endpoint(
+    donation_ids: List[str],
+    current_user: dict = Depends(get_current_user)
+):
+    """Bulk approve donation applications"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    result = await bulk_approve_donations(
+        db=db,
+        donation_ids=donation_ids,
+        admin_id=current_user["id"],
+        admin_name=current_user["name"]
+    )
+    
+    return result
+
+# Bulk Reject Donations
+@api_router.post("/admin/donations/bulk-reject")
+async def bulk_reject_donations_endpoint(
+    donation_ids: List[str],
+    reason: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Bulk reject donation applications"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    result = await bulk_reject_donations(
+        db=db,
+        donation_ids=donation_ids,
+        reason=reason,
+        admin_id=current_user["id"],
+        admin_name=current_user["name"]
+    )
+    
+    return result
+
+# User Activity Timeline
+@api_router.get("/admin/users/{user_id}/activity")
+async def get_user_activity_endpoint(
+    user_id: str,
+    current_user: dict = Depends(get_current_user),
+    limit: int = 20
+):
+    """Get activity timeline for a specific user"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    activities = await get_user_activity_timeline(
+        db=db,
+        user_id=user_id,
+        limit=limit
+    )
+    
+    return {"activities": activities}
+
+# Send Broadcast Notification
+@api_router.post("/admin/broadcast-notification")
+async def broadcast_notification(
+    title: str,
+    message: str,
+    target_role: Optional[str] = None,  # donor, hospital, or None for all
+    current_user: dict = Depends(get_current_user)
+):
+    """Send notification to all users or specific role"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Get target users
+    query = {"role": target_role} if target_role else {}
+    target_users = await db.users.find(query).to_list(10000)
+    
+    # Create notifications for each user
+    notifications_created = 0
+    for user in target_users:
+        notification = Notification(
+            user_id=user["id"],
+            type="general",
+            title=title,
+            message=message
+        )
+        await db.notifications.insert_one(notification.model_dump())
+        notifications_created += 1
+    
+    # Log audit
+    await create_audit_log(
+        db=db,
+        admin_id=current_user["id"],
+        admin_name=current_user["name"],
+        action="broadcast_notification",
+        target_type="notification",
+        changes={"title": title, "target_role": target_role, "recipients": notifications_created}
+    )
+    
+    return {
+        "message": "Broadcast notification sent successfully",
+        "recipients": notifications_created
+    }
+
+# Platform Settings
+@api_router.get("/admin/settings")
+async def get_platform_settings(
+    current_user: dict = Depends(get_current_user)
+):
+    """Get platform settings"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    settings = await db.platform_settings.find_one({})
+    if not settings:
+        # Return default settings
+        from models import PlatformSettings
+        settings = PlatformSettings().model_dump()
+    
+    return settings
+
+@api_router.put("/admin/settings")
+async def update_platform_settings(
+    settings: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update platform settings"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    settings["updated_by"] = current_user["id"]
+    settings["updated_at"] = datetime.utcnow()
+    
+    # Upsert settings
+    await db.platform_settings.update_one(
+        {},
+        {"$set": settings},
+        upsert=True
+    )
+    
+    # Log audit
+    await create_audit_log(
+        db=db,
+        admin_id=current_user["id"],
+        admin_name=current_user["name"],
+        action="update",
+        target_type="settings",
+        changes=settings
+    )
+    
+    return {"message": "Settings updated successfully", "settings": settings}
+
 # Include the router in the main app
 app.include_router(api_router)
 
