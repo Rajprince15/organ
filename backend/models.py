@@ -186,3 +186,87 @@ class NotificationCreate(BaseModel):
     message: str
     link: Optional[str] = None
     metadata: Optional[dict] = None
+
+# Community Post Models
+class CommunityPost(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    author_name: str
+    author_image: Optional[str] = None
+    content: str
+    image: Optional[str] = None
+    post_type: Literal["post", "reel"] = "post"
+    likes: int = 0
+    comments_count: int = 0
+    shares: int = 0
+    is_flagged: bool = False
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class CommunityPostCreate(BaseModel):
+    content: str
+    image: Optional[str] = None
+    post_type: Literal["post", "reel"] = "post"
+
+class CommunityPostUpdate(BaseModel):
+    content: Optional[str] = None
+    image: Optional[str] = None
+    is_flagged: Optional[bool] = None
+    is_active: Optional[bool] = None
+
+# Event Models
+class Event(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: str
+    description: str
+    date: str
+    time: str
+    location: str
+    organizer_id: str
+    organizer_name: str
+    attendees_count: int = 0
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class EventCreate(BaseModel):
+    title: str
+    description: str
+    date: str
+    time: str
+    location: str
+
+class EventUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    date: Optional[str] = None
+    time: Optional[str] = None
+    location: Optional[str] = None
+    is_active: Optional[bool] = None
+
+# Resource/Article Models
+class Resource(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: str
+    description: str
+    content: str
+    category: str
+    author_id: str
+    author_name: str
+    is_published: bool = True
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class ResourceCreate(BaseModel):
+    title: str
+    description: str
+    content: str
+    category: str
+
+class ResourceUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    content: Optional[str] = None
+    category: Optional[str] = None
+    is_published: Optional[bool] = None

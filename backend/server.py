@@ -17,7 +17,10 @@ from models import (
     DonationApplication, DonationApplicationCreate, DonationApplicationUpdate,
     HospitalRequirement, HospitalRequirementCreate, HospitalRequirementUpdate,
     ContactHistory, ContactHistoryCreate, Shortlist, ShortlistCreate,
-    Notification, NotificationCreate
+    Notification, NotificationCreate,
+    CommunityPost, CommunityPostCreate, CommunityPostUpdate,
+    Event, EventCreate, EventUpdate,
+    Resource, ResourceCreate, ResourceUpdate
 )
 from auth_utils import get_current_user
 from fastapi import Depends, HTTPException
@@ -950,6 +953,23 @@ async def get_admin_stats(
     total_matches = len(all_shortlists)
     total_contacts = len(all_contacts)
     
+    # Count community posts
+    all_posts = await db.community_posts.find({}).to_list(10000)
+    total_posts = len(all_posts)
+    active_posts = len([p for p in all_posts if p.get("is_active")])
+    flagged_posts = len([p for p in all_posts if p.get("is_flagged")])
+    reels_count = len([p for p in all_posts if p.get("post_type") == "reel"])
+    
+    # Count events
+    all_events = await db.events.find({}).to_list(10000)
+    total_events = len(all_events)
+    active_events = len([e for e in all_events if e.get("is_active")])
+    
+    # Count resources
+    all_resources = await db.resources.find({}).to_list(10000)
+    total_resources = len(all_resources)
+    published_resources = len([r for r in all_resources if r.get("is_published")])
+    
     return {
         "users": {
             "total": total_users,
@@ -972,6 +992,20 @@ async def get_admin_stats(
         "matches": {
             "total_shortlisted": total_matches,
             "total_contacts": total_contacts
+        },
+        "community": {
+            "total_posts": total_posts,
+            "active_posts": active_posts,
+            "flagged_posts": flagged_posts,
+            "reels_count": reels_count
+        },
+        "events": {
+            "total_events": total_events,
+            "active_events": active_events
+        },
+        "resources": {
+            "total_resources": total_resources,
+            "published_resources": published_resources
         }
     }
 
@@ -1306,6 +1340,449 @@ async def get_recent_activity(
     activity = activity[:limit]
     
     return {"activity": activity}
+
+# ============================================
+# COMMUNITY POSTS ROUTES
+# ============================================
+
+@api_router.get("/community-posts")
+async def get_community_posts(
+    post_type: Optional[str] = None,
+    page: int = 1,
+    limit: int = 50
+):
+    """Get all community posts (public access)"""
+    filter_dict = {"is_active": True}
+    if post_type:
+        filter_dict["post_type"] = post_type
+    
+    all_posts = await db.community_posts.find(filter_dict).sort("created_at", -1).to_list(10000)
+    
+    # Pagination
+    total = len(all_posts)
+    start_idx = (page - 1) * limit
+    end_idx = start_idx + limit
+    paginated_posts = all_posts[start_idx:end_idx]
+    
+    return {
+        "posts": [CommunityPost(**post) for post in paginated_posts],
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "total_pages": (total + limit - 1) // limit
+    }
+
+@api_router.post("/community-posts", response_model=CommunityPost)
+async def create_community_post(
+    post_data: CommunityPostCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new community post"""
+    post_dict = post_data.model_dump()
+    post_dict["user_id"] = current_user["id"]
+    post_dict["author_name"] = current_user["name"]
+    
+    post_obj = CommunityPost(**post_dict)
+    await db.community_posts.insert_one(post_obj.model_dump())
+    
+    return post_obj
+
+@api_router.put("/community-posts/{post_id}/like")
+async def like_community_post(post_id: str):
+    """Like a community post (public access for now)"""
+    post = await db.community_posts.find_one({"id": post_id})
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
+    result = await db.community_posts.update_one(
+        {"id": post_id},
+        {"$set": {"likes": post.get("likes", 0) + 1}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Failed to like post")
+    
+    return {"message": "Post liked successfully"}
+
+@api_router.delete("/community-posts/{post_id}")
+async def delete_community_post(
+    post_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete own community post"""
+    post = await db.community_posts.find_one({"id": post_id, "user_id": current_user["id"]})
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found or unauthorized")
+    
+    result = await db.community_posts.delete_one({"id": post_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Failed to delete post")
+    
+    return {"message": "Post deleted successfully"}
+
+# Admin Community Post Routes
+@api_router.get("/admin/community-posts")
+async def get_all_community_posts_admin(
+    current_user: dict = Depends(get_current_user),
+    post_type: Optional[str] = None,
+    is_flagged: Optional[bool] = None,
+    page: int = 1,
+    limit: int = 50
+):
+    """Get all community posts (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    filter_dict = {}
+    if post_type:
+        filter_dict["post_type"] = post_type
+    if is_flagged is not None:
+        filter_dict["is_flagged"] = is_flagged
+    
+    all_posts = await db.community_posts.find(filter_dict).sort("created_at", -1).to_list(10000)
+    
+    # Pagination
+    total = len(all_posts)
+    start_idx = (page - 1) * limit
+    end_idx = start_idx + limit
+    paginated_posts = all_posts[start_idx:end_idx]
+    
+    return {
+        "posts": [CommunityPost(**post) for post in paginated_posts],
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "total_pages": (total + limit - 1) // limit
+    }
+
+@api_router.put("/admin/community-posts/{post_id}")
+async def update_community_post_admin(
+    post_id: str,
+    updates: CommunityPostUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update any community post (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    post = await db.community_posts.find_one({"id": post_id})
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
+    update_dict = {k: v for k, v in updates.model_dump().items() if v is not None}
+    update_dict["updated_at"] = datetime.utcnow()
+    
+    result = await db.community_posts.update_one(
+        {"id": post_id},
+        {"$set": update_dict}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Failed to update post")
+    
+    updated_post = await db.community_posts.find_one({"id": post_id})
+    return {"message": "Post updated successfully", "post": CommunityPost(**updated_post)}
+
+@api_router.delete("/admin/community-posts/{post_id}")
+async def delete_community_post_admin(
+    post_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete any community post (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    result = await db.community_posts.delete_one({"id": post_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
+    return {"message": "Post deleted successfully"}
+
+# ============================================
+# EVENTS ROUTES
+# ============================================
+
+@api_router.get("/events")
+async def get_events(
+    page: int = 1,
+    limit: int = 50
+):
+    """Get all active events (public access)"""
+    all_events = await db.events.find({"is_active": True}).sort("date", 1).to_list(10000)
+    
+    # Pagination
+    total = len(all_events)
+    start_idx = (page - 1) * limit
+    end_idx = start_idx + limit
+    paginated_events = all_events[start_idx:end_idx]
+    
+    return {
+        "events": [Event(**event) for event in paginated_events],
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "total_pages": (total + limit - 1) // limit
+    }
+
+@api_router.post("/events", response_model=Event)
+async def create_event(
+    event_data: EventCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new event"""
+    event_dict = event_data.model_dump()
+    event_dict["organizer_id"] = current_user["id"]
+    event_dict["organizer_name"] = current_user["name"]
+    
+    event_obj = Event(**event_dict)
+    await db.events.insert_one(event_obj.model_dump())
+    
+    return event_obj
+
+@api_router.put("/events/{event_id}/attend")
+async def attend_event(event_id: str):
+    """Register attendance for an event (public access for now)"""
+    event = await db.events.find_one({"id": event_id})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    result = await db.events.update_one(
+        {"id": event_id},
+        {"$set": {"attendees_count": event.get("attendees_count", 0) + 1}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Failed to register attendance")
+    
+    return {"message": "Attendance registered successfully"}
+
+@api_router.delete("/events/{event_id}")
+async def delete_event(
+    event_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete own event"""
+    event = await db.events.find_one({"id": event_id, "organizer_id": current_user["id"]})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found or unauthorized")
+    
+    result = await db.events.delete_one({"id": event_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Failed to delete event")
+    
+    return {"message": "Event deleted successfully"}
+
+# Admin Event Routes
+@api_router.get("/admin/events")
+async def get_all_events_admin(
+    current_user: dict = Depends(get_current_user),
+    page: int = 1,
+    limit: int = 50
+):
+    """Get all events (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    all_events = await db.events.find({}).sort("created_at", -1).to_list(10000)
+    
+    # Pagination
+    total = len(all_events)
+    start_idx = (page - 1) * limit
+    end_idx = start_idx + limit
+    paginated_events = all_events[start_idx:end_idx]
+    
+    return {
+        "events": [Event(**event) for event in paginated_events],
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "total_pages": (total + limit - 1) // limit
+    }
+
+@api_router.post("/admin/events", response_model=Event)
+async def create_event_admin(
+    event_data: EventCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new event (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    event_dict = event_data.model_dump()
+    event_dict["organizer_id"] = current_user["id"]
+    event_dict["organizer_name"] = current_user["name"]
+    
+    event_obj = Event(**event_dict)
+    await db.events.insert_one(event_obj.model_dump())
+    
+    return event_obj
+
+@api_router.put("/admin/events/{event_id}")
+async def update_event_admin(
+    event_id: str,
+    updates: EventUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update any event (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    event = await db.events.find_one({"id": event_id})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    update_dict = {k: v for k, v in updates.model_dump().items() if v is not None}
+    update_dict["updated_at"] = datetime.utcnow()
+    
+    result = await db.events.update_one(
+        {"id": event_id},
+        {"$set": update_dict}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Failed to update event")
+    
+    updated_event = await db.events.find_one({"id": event_id})
+    return {"message": "Event updated successfully", "event": Event(**updated_event)}
+
+@api_router.delete("/admin/events/{event_id}")
+async def delete_event_admin(
+    event_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete any event (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    result = await db.events.delete_one({"id": event_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    return {"message": "Event deleted successfully"}
+
+# ============================================
+# RESOURCES/ARTICLES ROUTES
+# ============================================
+
+@api_router.get("/resources")
+async def get_resources(
+    category: Optional[str] = None,
+    page: int = 1,
+    limit: int = 50
+):
+    """Get all published resources (public access)"""
+    filter_dict = {"is_published": True}
+    if category:
+        filter_dict["category"] = category
+    
+    all_resources = await db.resources.find(filter_dict).sort("created_at", -1).to_list(10000)
+    
+    # Pagination
+    total = len(all_resources)
+    start_idx = (page - 1) * limit
+    end_idx = start_idx + limit
+    paginated_resources = all_resources[start_idx:end_idx]
+    
+    return {
+        "resources": [Resource(**resource) for resource in paginated_resources],
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "total_pages": (total + limit - 1) // limit
+    }
+
+# Admin Resource Routes
+@api_router.get("/admin/resources")
+async def get_all_resources_admin(
+    current_user: dict = Depends(get_current_user),
+    page: int = 1,
+    limit: int = 50
+):
+    """Get all resources (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    all_resources = await db.resources.find({}).sort("created_at", -1).to_list(10000)
+    
+    # Pagination
+    total = len(all_resources)
+    start_idx = (page - 1) * limit
+    end_idx = start_idx + limit
+    paginated_resources = all_resources[start_idx:end_idx]
+    
+    return {
+        "resources": [Resource(**resource) for resource in paginated_resources],
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "total_pages": (total + limit - 1) // limit
+    }
+
+@api_router.post("/admin/resources", response_model=Resource)
+async def create_resource_admin(
+    resource_data: ResourceCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new resource (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    resource_dict = resource_data.model_dump()
+    resource_dict["author_id"] = current_user["id"]
+    resource_dict["author_name"] = current_user["name"]
+    
+    resource_obj = Resource(**resource_dict)
+    await db.resources.insert_one(resource_obj.model_dump())
+    
+    return resource_obj
+
+@api_router.put("/admin/resources/{resource_id}")
+async def update_resource_admin(
+    resource_id: str,
+    updates: ResourceUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update any resource (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    resource = await db.resources.find_one({"id": resource_id})
+    if not resource:
+        raise HTTPException(status_code=404, detail="Resource not found")
+    
+    update_dict = {k: v for k, v in updates.model_dump().items() if v is not None}
+    update_dict["updated_at"] = datetime.utcnow()
+    
+    result = await db.resources.update_one(
+        {"id": resource_id},
+        {"$set": update_dict}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Failed to update resource")
+    
+    updated_resource = await db.resources.find_one({"id": resource_id})
+    return {"message": "Resource updated successfully", "resource": Resource(**updated_resource)}
+
+@api_router.delete("/admin/resources/{resource_id}")
+async def delete_resource_admin(
+    resource_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete any resource (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    result = await db.resources.delete_one({"id": resource_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Resource not found")
+    
+    return {"message": "Resource deleted successfully"}
 
 # Include the router in the main app
 app.include_router(api_router)

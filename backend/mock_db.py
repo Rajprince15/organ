@@ -884,6 +884,217 @@ def seed_mock_data(db: MockDatabase):
         contact_id = contact['id']
         db.contact_history._data[contact_id] = contact.copy()
     
+    # Create sample community posts
+    sample_posts = [
+        {
+            "id": str(uuid.uuid4()),
+            "user_id": donor_id_1,
+            "author_name": "John Donor",
+            "author_image": "🎁",
+            "content": "Every 10 minutes, someone is added to the organ transplant waiting list. Register today and give the gift of life! 💚",
+            "image": "🏥",
+            "post_type": "post",
+            "likes": 567,
+            "comments_count": 45,
+            "shares": 89,
+            "is_flagged": False,
+            "is_active": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "user_id": donor_id_2,
+            "author_name": "Sarah Wilson",
+            "author_image": "🇮🇳",
+            "content": "Success story: Thanks to our network, a heart transplant was completed in record time, saving a 35-year-old father of two. #OrganDonation",
+            "image": "❤️‍🩹",
+            "post_type": "post",
+            "likes": 892,
+            "comments_count": 67,
+            "shares": 156,
+            "is_flagged": False,
+            "is_active": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "user_id": donor_id_3,
+            "author_name": "Dr. Sharma",
+            "author_image": "🩺",
+            "content": "A quick guide to the organ donation process and its life-saving impact.",
+            "image": "🫀",
+            "post_type": "reel",
+            "likes": 1234,
+            "comments_count": 89,
+            "shares": 234,
+            "is_flagged": False,
+            "is_active": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "user_id": donor_id_4,
+            "author_name": "Priya Kumar",
+            "author_image": "👩",
+            "content": "Sharing my story of receiving a second chance at life through organ donation.",
+            "image": "💚",
+            "post_type": "reel",
+            "likes": 2341,
+            "comments_count": 156,
+            "shares": 445,
+            "is_flagged": False,
+            "is_active": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "user_id": donor_id_5,
+            "author_name": "David Patel",
+            "author_image": "👨",
+            "content": "My experience donating a kidney to save my brother's life.",
+            "image": "❤️",
+            "post_type": "reel",
+            "likes": 4567,
+            "comments_count": 301,
+            "shares": 890,
+            "is_flagged": False,
+            "is_active": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }
+    ]
+    
+    # Insert community posts
+    for post in sample_posts:
+        post_id = post['id']
+        db.community_posts._data[post_id] = post.copy()
+    
+    # Create sample events
+    sample_events = [
+        {
+            "id": str(uuid.uuid4()),
+            "title": "National Organ Donation Day",
+            "description": "Join us for a nationwide celebration and awareness campaign for organ donation.",
+            "date": "2025-08-13",
+            "time": "10:00 AM - 4:00 PM",
+            "location": "Pan-India Virtual Event",
+            "organizer_id": hospital_id,
+            "organizer_name": "City Hospital",
+            "attendees_count": 1234,
+            "is_active": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "title": "Awareness Walk - Delhi",
+            "description": "Community walk to raise awareness about organ donation in the capital.",
+            "date": "2025-09-05",
+            "time": "7:00 AM - 9:00 AM",
+            "location": "India Gate, New Delhi",
+            "organizer_id": hospital_id_2,
+            "organizer_name": "Regional Medical Center",
+            "attendees_count": 456,
+            "is_active": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "title": "Medical Seminar on Transplants",
+            "description": "Educational seminar for medical professionals and interested individuals.",
+            "date": "2025-10-12",
+            "time": "2:00 PM - 6:00 PM",
+            "location": "AIIMS, Mumbai",
+            "organizer_id": hospital_id,
+            "organizer_name": "City Hospital",
+            "attendees_count": 289,
+            "is_active": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "title": "Blood Donation Camp",
+            "description": "Special blood donation drive in support of transplant patients.",
+            "date": "2025-11-20",
+            "time": "9:00 AM - 5:00 PM",
+            "location": "Community Center, Bangalore",
+            "organizer_id": hospital_id,
+            "organizer_name": "City Hospital",
+            "attendees_count": 567,
+            "is_active": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }
+    ]
+    
+    # Insert events
+    for event in sample_events:
+        event_id = event['id']
+        db.events._data[event_id] = event.copy()
+    
+    # Create sample resources
+    sample_resources = [
+        {
+            "id": str(uuid.uuid4()),
+            "title": "The Complete Guide to Organ Donation Process",
+            "description": "Step-by-step explanation of how organ donation works from registration to transplant.",
+            "content": "Detailed guide content about the organ donation process...",
+            "category": "Process",
+            "author_id": str(uuid.uuid4()),
+            "author_name": "Admin Team",
+            "is_published": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "title": "Understanding Brain Death vs. Cardiac Death",
+            "description": "Medical explanation of different types of death and their relation to organ donation.",
+            "content": "Comprehensive medical explanation about brain death and cardiac death...",
+            "category": "Medical",
+            "author_id": str(uuid.uuid4()),
+            "author_name": "Admin Team",
+            "is_published": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "title": "Legal Framework of Organ Donation in India",
+            "description": "Overview of the Transplantation of Human Organs Act and your rights as a donor.",
+            "content": "Legal information about organ donation in India...",
+            "category": "Legal",
+            "author_id": str(uuid.uuid4()),
+            "author_name": "Admin Team",
+            "is_published": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "title": "Myths vs. Facts About Organ Donation",
+            "description": "Debunking common misconceptions and providing evidence-based information.",
+            "content": "Common myths and facts about organ donation...",
+            "category": "Awareness",
+            "author_id": str(uuid.uuid4()),
+            "author_name": "Admin Team",
+            "is_published": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }
+    ]
+    
+    # Insert resources
+    for resource in sample_resources:
+        resource_id = resource['id']
+        db.resources._data[resource_id] = resource.copy()
+    
     print("Mock database seeded with test users:")
     print("   - donor@organconnect.com / donor123 (with donation application)")
     print("   - hospital@organconnect.com / hospital123 (with requirements)")
@@ -892,4 +1103,7 @@ def seed_mock_data(db: MockDatabase):
     print(f"   - Created {len(sample_requirements)} hospital requirements")
     print(f"   - Created {len(sample_notifications)} sample notifications")
     print(f"   - Created {len(sample_shortlist)} shortlist entries")
+    print(f"   - Created {len(sample_posts)} community posts")
+    print(f"   - Created {len(sample_events)} events")
+    print(f"   - Created {len(sample_resources)} resources")
     print(f"   - Created {len(sample_contacts)} contact history entries")
