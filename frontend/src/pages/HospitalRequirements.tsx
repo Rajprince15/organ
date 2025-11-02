@@ -145,6 +145,18 @@ const HospitalRequirements = () => {
     }
   };
 
+  const getAdminApprovalBadge = (status: string) => {
+    if (status === "active") {
+      return (
+        <Badge className="bg-green-500 text-white border-green-600" data-testid="admin-approved-badge">
+          <CheckCircle className="h-3 w-3 mr-1" /> 
+          Admin Approved
+        </Badge>
+      );
+    }
+    return null;
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
@@ -285,11 +297,12 @@ const HospitalRequirements = () => {
                       <Building2 className="h-8 w-8 text-primary" />
                       <div>
                         <h3 className="text-xl font-semibold">{req.patient_name}</h3>
-                        <div className="flex items-center gap-2 mt-1">
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
                           <span className={`inline-block px-3 py-1 rounded-full border text-xs font-semibold uppercase ${getUrgencyColor(req.urgency_level)}`}>
                             {req.urgency_level} Priority
                           </span>
                           {getStatusBadge(req.status)}
+                          {getAdminApprovalBadge(req.status)}
                         </div>
                       </div>
                     </div>
