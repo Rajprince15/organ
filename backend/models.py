@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, EmailStr
-from typing import Optional, Literal
+from typing import Optional, Literal, List
 from datetime import datetime
 import uuid
 
@@ -306,3 +306,133 @@ class PlatformSettings(BaseModel):
     auto_archive_days: int = 365
     updated_by: Optional[str] = None
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+# ============================================
+# PHASE 3 MODELS - Matching Insights & Support
+# ============================================
+
+# Match Log Models
+class MatchLog(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    match_type: Literal["donor_to_requirement", "requirement_to_donor"]  # direction of matching
+    donor_id: str
+    donor_name: str
+    requirement_id: str
+    requirement_details: str  # e.g., "Heart for John Doe"
+    hospital_id: str
+    hospital_name: str
+    match_score: int
+    score_breakdown: dict  # detailed scoring info
+    status: Literal["auto_matched", "manually_approved", "manually_rejected", "pending"]
+    admin_notes: Optional[str] = None
+    approved_by: Optional[str] = None  # admin_id who manually approved/rejected
+    approved_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+# Algorithm Configuration Model
+class AlgorithmConfig(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    organ_match_weight: int = 100  # Weight for organ match
+    blood_compatibility_weight: int = 50  # Weight for blood group
+    location_proximity_weight: int = 30  # Weight for location
+    age_suitability_weight: int = 20  # Weight for age
+    critical_urgency_multiplier: float = 1.5
+    high_urgency_multiplier: float = 1.3
+    medium_urgency_multiplier: float = 1.0
+    min_match_score_threshold: int = 100  # Minimum score to show match
+    updated_by: Optional[str] = None
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class AlgorithmConfigUpdate(BaseModel):
+    organ_match_weight: Optional[int] = None
+    blood_compatibility_weight: Optional[int] = None
+    location_proximity_weight: Optional[int] = None
+    age_suitability_weight: Optional[int] = None
+    critical_urgency_multiplier: Optional[float] = None
+    high_urgency_multiplier: Optional[float] = None
+    medium_urgency_multiplier: Optional[float] = None
+    min_match_score_threshold: Optional[int] = None
+
+# Support Ticket Models
+class SupportTicket(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    user_name: str
+    user_email: str
+    user_role: str
+    subject: str
+    description: str
+    category: Literal["technical", "account", "matching", "general", "urgent"]
+    priority: Literal["low", "medium", "high", "critical"] = "medium"
+    status: Literal["open", "in_progress", "resolved", "closed"] = "open"
+    assigned_to: Optional[str] = None  # admin_id
+    assigned_to_name: Optional[str] = None
+    admin_response: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    resolved_at: Optional[datetime] = None
+
+class SupportTicketCreate(BaseModel):
+    subject: str
+    description: str
+    category: Literal["technical", "account", "matching", "general", "urgent"]
+    priority: Literal["low", "medium", "high", "critical"] = "medium"
+
+class SupportTicketUpdate(BaseModel):
+    status: Optional[Literal["open", "in_progress", "resolved", "closed"]] = None
+    assigned_to: Optional[str] = None
+    admin_response: Optional[str] = None
+    priority: Optional[Literal["low", "medium", "high", "critical"]] = None
+
+# FAQ Models
+class FAQ(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    question: str
+    answer: str
+    category: str  # e.g., "Donation Process", "Medical", "Legal"
+    order: int = 0  # for sorting
+    is_published: bool = True
+    created_by: str  # admin_id
+    created_by_name: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class FAQCreate(BaseModel):
+    question: str
+    answer: str
+    category: str
+    order: int = 0
+
+class FAQUpdate(BaseModel):
+    question: Optional[str] = None
+    answer: Optional[str] = None
+    category: Optional[str] = None
+    order: Optional[int] = None
+    is_published: Optional[bool] = None
+
+# Help Documentation Models
+class HelpDocument(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: str
+    content: str  # Rich text/markdown content
+    category: str
+    tags: List[str] = []
+    is_published: bool = True
+    author_id: str
+    author_name: str
+    views: int = 0
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class HelpDocumentCreate(BaseModel):
+    title: str
+    content: str
+    category: str
+    tags: List[str] = []
+
+class HelpDocumentUpdate(BaseModel):
+    title: Optional[str] = None
+    content: Optional[str] = None
+    category: Optional[str] = None
+    tags: Optional[List[str]] = None
+    is_published: Optional[bool] = None

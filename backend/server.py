@@ -7,7 +7,7 @@ import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Literal
 import uuid
 from datetime import datetime
 import io
@@ -2006,6 +2006,546 @@ async def update_platform_settings(
     )
     
     return {"message": "Settings updated successfully", "settings": settings}
+
+# ============================================
+# PHASE 3 ROUTES - MATCHING INSIGHTS & SUPPORT
+# ============================================
+
+from phase3_service import (
+    log_match_attempt,
+    get_match_analytics,
+    get_default_algorithm_config,
+    log_activity,
+    log_audit
+)
+
+# Import Phase 3 models
+from models import (
+    MatchLog, AlgorithmConfig, AlgorithmConfigUpdate,
+    SupportTicket, SupportTicketCreate, SupportTicketUpdate,
+    FAQ, FAQCreate, FAQUpdate,
+    HelpDocument, HelpDocumentCreate, HelpDocumentUpdate
+)
+
+# ============================================
+# MATCHING INSIGHTS ROUTES
+# ============================================
+
+@api_router.get("/admin/matching/analytics")
+async def get_matching_analytics(
+    current_user: dict = Depends(get_current_user),
+    days: int = 30
+):
+    """Get matching algorithm performance analytics (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    analytics = await get_match_analytics(db, days)
+    return analytics
+
+@api_router.get("/admin/matching/logs")
+async def get_match_logs(
+    current_user: dict = Depends(get_current_user),
+    status: Optional[str] = None,
+    limit: int = 100
+):
+    """Get match logs with filtering (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    filter_dict = {}
+    if status:
+        filter_dict["status"] = status
+    
+    logs = await db.match_logs.find(filter_dict).sort("created_at", -1).to_list(limit)
+    return {
+        "logs": [MatchLog(**log) for log in logs],
+        "total": len(logs)
+    }
+
+@api_router.put("/admin/matching/logs/{log_id}/override")
+async def manual_match_override(
+    log_id: str,
+    action: Literal["approve", "reject"],
+    notes: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Manually approve or reject a match (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    log = await db.match_logs.find_one({"id": log_id})
+    if not log:
+        raise HTTPException(status_code=404, detail="Match log not found")
+    
+    new_status = "manually_approved" if action == "approve" else "manually_rejected"
+    
+    result = await db.match_logs.update_one(
+        {"id": log_id},
+        {"$set": {
+            "status": new_status,
+            "admin_notes": notes,
+            "approved_by": current_user["id"],
+            "approved_at": datetime.utcnow()
+        }}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Failed to update match log")
+    
+    # Log audit
+    await log_audit(
+        db=db,
+        admin_id=current_user["id"],
+        admin_name=current_user["name"],
+        action="update",
+        target_type="match_override",
+        target_id=log_id,
+        changes={"action": action, "notes": notes}
+    )
+    
+    return {"message": f"Match {action}d successfully"}
+
+@api_router.get("/admin/matching/config")
+async def get_algorithm_config(
+    current_user: dict = Depends(get_current_user)
+):
+    """Get algorithm configuration (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    config = await get_default_algorithm_config(db)
+    return AlgorithmConfig(**config)
+
+@api_router.put("/admin/matching/config")
+async def update_algorithm_config(
+    updates: AlgorithmConfigUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update algorithm configuration (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    config = await get_default_algorithm_config(db)
+    
+    # Update only provided fields
+    update_dict = {k: v for k, v in updates.model_dump().items() if v is not None}
+    update_dict["updated_by"] = current_user["id"]
+    update_dict["updated_at"] = datetime.utcnow()
+    
+    result = await db.algorithm_config.update_one(
+        {"id": config["id"]},
+        {"$set": update_dict}
+    )
+    
+    # Log audit
+    await log_audit(
+        db=db,
+        admin_id=current_user["id"],
+        admin_name=current_user["name"],
+        action="update",
+        target_type="algorithm_config",
+        changes=update_dict
+    )
+    
+    updated_config = await db.algorithm_config.find_one({"id": config["id"]})
+    return {"message": "Algorithm configuration updated successfully", "config": AlgorithmConfig(**updated_config)}
+
+# ============================================
+# SUPPORT TICKETS ROUTES
+# ============================================
+
+@api_router.post("/support/tickets", response_model=SupportTicket)
+async def create_support_ticket(
+    ticket_data: SupportTicketCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a support ticket"""
+    ticket_dict = ticket_data.model_dump()
+    ticket_dict["user_id"] = current_user["id"]
+    ticket_dict["user_name"] = current_user["name"]
+    ticket_dict["user_email"] = current_user["email"]
+    ticket_dict["user_role"] = current_user["role"]
+    
+    ticket_obj = SupportTicket(**ticket_dict)
+    await db.support_tickets.insert_one(ticket_obj.model_dump())
+    
+    # Log activity
+    await log_activity(
+        db=db,
+        user_id=current_user["id"],
+        user_name=current_user["name"],
+        user_role=current_user["role"],
+        activity_type="support_ticket_created",
+        description=f"Created support ticket: {ticket_data.subject}"
+    )
+    
+    return ticket_obj
+
+@api_router.get("/support/tickets/me")
+async def get_my_tickets(
+    current_user: dict = Depends(get_current_user)
+):
+    """Get current user's support tickets"""
+    tickets = await db.support_tickets.find({"user_id": current_user["id"]}).sort("created_at", -1).to_list(100)
+    return {
+        "tickets": [SupportTicket(**t) for t in tickets],
+        "total": len(tickets)
+    }
+
+@api_router.get("/admin/support/tickets")
+async def get_all_tickets(
+    current_user: dict = Depends(get_current_user),
+    status: Optional[str] = None,
+    priority: Optional[str] = None,
+    category: Optional[str] = None,
+    limit: int = 100
+):
+    """Get all support tickets (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    filter_dict = {}
+    if status:
+        filter_dict["status"] = status
+    if priority:
+        filter_dict["priority"] = priority
+    if category:
+        filter_dict["category"] = category
+    
+    tickets = await db.support_tickets.find(filter_dict).sort("created_at", -1).to_list(limit)
+    
+    # Get stats
+    all_tickets = await db.support_tickets.find({}).to_list(10000)
+    stats = {
+        "total": len(all_tickets),
+        "open": len([t for t in all_tickets if t.get("status") == "open"]),
+        "in_progress": len([t for t in all_tickets if t.get("status") == "in_progress"]),
+        "resolved": len([t for t in all_tickets if t.get("status") == "resolved"]),
+        "closed": len([t for t in all_tickets if t.get("status") == "closed"])
+    }
+    
+    return {
+        "tickets": [SupportTicket(**t) for t in tickets],
+        "total": len(tickets),
+        "stats": stats
+    }
+
+@api_router.put("/admin/support/tickets/{ticket_id}")
+async def update_support_ticket(
+    ticket_id: str,
+    updates: SupportTicketUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update support ticket (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    ticket = await db.support_tickets.find_one({"id": ticket_id})
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    
+    # Update only provided fields
+    update_dict = {k: v for k, v in updates.model_dump().items() if v is not None}
+    update_dict["updated_at"] = datetime.utcnow()
+    
+    # If status changed to resolved, set resolved_at
+    if updates.status == "resolved":
+        update_dict["resolved_at"] = datetime.utcnow()
+    
+    # If assigned, add admin name
+    if updates.assigned_to:
+        admin = await db.users.find_one({"id": updates.assigned_to})
+        if admin:
+            update_dict["assigned_to_name"] = admin.get("name", "Unknown")
+    
+    result = await db.support_tickets.update_one(
+        {"id": ticket_id},
+        {"$set": update_dict}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Failed to update ticket")
+    
+    # Log audit
+    await log_audit(
+        db=db,
+        admin_id=current_user["id"],
+        admin_name=current_user["name"],
+        action="update",
+        target_type="support_ticket",
+        target_id=ticket_id,
+        changes=update_dict
+    )
+    
+    updated_ticket = await db.support_tickets.find_one({"id": ticket_id})
+    return {"message": "Ticket updated successfully", "ticket": SupportTicket(**updated_ticket)}
+
+# ============================================
+# FAQ ROUTES
+# ============================================
+
+@api_router.get("/faqs")
+async def get_faqs(category: Optional[str] = None):
+    """Get published FAQs (public access)"""
+    filter_dict = {"is_published": True}
+    if category:
+        filter_dict["category"] = category
+    
+    faqs = await db.faqs.find(filter_dict).sort("order", 1).to_list(1000)
+    return {
+        "faqs": [FAQ(**faq) for faq in faqs],
+        "total": len(faqs)
+    }
+
+@api_router.get("/admin/faqs")
+async def get_all_faqs(
+    current_user: dict = Depends(get_current_user)
+):
+    """Get all FAQs including unpublished (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    faqs = await db.faqs.find({}).sort("order", 1).to_list(1000)
+    return {
+        "faqs": [FAQ(**faq) for faq in faqs],
+        "total": len(faqs)
+    }
+
+@api_router.post("/admin/faqs", response_model=FAQ)
+async def create_faq(
+    faq_data: FAQCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new FAQ (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    faq_dict = faq_data.model_dump()
+    faq_dict["created_by"] = current_user["id"]
+    faq_dict["created_by_name"] = current_user["name"]
+    
+    faq_obj = FAQ(**faq_dict)
+    await db.faqs.insert_one(faq_obj.model_dump())
+    
+    # Log audit
+    await log_audit(
+        db=db,
+        admin_id=current_user["id"],
+        admin_name=current_user["name"],
+        action="create",
+        target_type="faq",
+        target_id=faq_obj.id
+    )
+    
+    return faq_obj
+
+@api_router.put("/admin/faqs/{faq_id}")
+async def update_faq(
+    faq_id: str,
+    updates: FAQUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update FAQ (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    faq = await db.faqs.find_one({"id": faq_id})
+    if not faq:
+        raise HTTPException(status_code=404, detail="FAQ not found")
+    
+    # Update only provided fields
+    update_dict = {k: v for k, v in updates.model_dump().items() if v is not None}
+    update_dict["updated_at"] = datetime.utcnow()
+    
+    result = await db.faqs.update_one(
+        {"id": faq_id},
+        {"$set": update_dict}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Failed to update FAQ")
+    
+    # Log audit
+    await log_audit(
+        db=db,
+        admin_id=current_user["id"],
+        admin_name=current_user["name"],
+        action="update",
+        target_type="faq",
+        target_id=faq_id,
+        changes=update_dict
+    )
+    
+    updated_faq = await db.faqs.find_one({"id": faq_id})
+    return {"message": "FAQ updated successfully", "faq": FAQ(**updated_faq)}
+
+@api_router.delete("/admin/faqs/{faq_id}")
+async def delete_faq(
+    faq_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete FAQ (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    result = await db.faqs.delete_one({"id": faq_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="FAQ not found")
+    
+    # Log audit
+    await log_audit(
+        db=db,
+        admin_id=current_user["id"],
+        admin_name=current_user["name"],
+        action="delete",
+        target_type="faq",
+        target_id=faq_id
+    )
+    
+    return {"message": "FAQ deleted successfully"}
+
+# ============================================
+# HELP DOCUMENTATION ROUTES
+# ============================================
+
+@api_router.get("/help/documents")
+async def get_help_documents(category: Optional[str] = None):
+    """Get published help documents (public access)"""
+    filter_dict = {"is_published": True}
+    if category:
+        filter_dict["category"] = category
+    
+    docs = await db.help_documents.find(filter_dict).sort("created_at", -1).to_list(1000)
+    return {
+        "documents": [HelpDocument(**doc) for doc in docs],
+        "total": len(docs)
+    }
+
+@api_router.get("/help/documents/{doc_id}")
+async def get_help_document(doc_id: str):
+    """Get a specific help document and increment views"""
+    doc = await db.help_documents.find_one({"id": doc_id, "is_published": True})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    # Increment view count
+    await db.help_documents.update_one(
+        {"id": doc_id},
+        {"$inc": {"views": 1}}
+    )
+    
+    doc["views"] += 1
+    return HelpDocument(**doc)
+
+@api_router.get("/admin/help/documents")
+async def get_all_help_documents(
+    current_user: dict = Depends(get_current_user)
+):
+    """Get all help documents including unpublished (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    docs = await db.help_documents.find({}).sort("created_at", -1).to_list(1000)
+    return {
+        "documents": [HelpDocument(**doc) for doc in docs],
+        "total": len(docs)
+    }
+
+@api_router.post("/admin/help/documents", response_model=HelpDocument)
+async def create_help_document(
+    doc_data: HelpDocumentCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new help document (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    doc_dict = doc_data.model_dump()
+    doc_dict["author_id"] = current_user["id"]
+    doc_dict["author_name"] = current_user["name"]
+    
+    doc_obj = HelpDocument(**doc_dict)
+    await db.help_documents.insert_one(doc_obj.model_dump())
+    
+    # Log audit
+    await log_audit(
+        db=db,
+        admin_id=current_user["id"],
+        admin_name=current_user["name"],
+        action="create",
+        target_type="help_document",
+        target_id=doc_obj.id
+    )
+    
+    return doc_obj
+
+@api_router.put("/admin/help/documents/{doc_id}")
+async def update_help_document(
+    doc_id: str,
+    updates: HelpDocumentUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update help document (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    doc = await db.help_documents.find_one({"id": doc_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    # Update only provided fields
+    update_dict = {k: v for k, v in updates.model_dump().items() if v is not None}
+    update_dict["updated_at"] = datetime.utcnow()
+    
+    result = await db.help_documents.update_one(
+        {"id": doc_id},
+        {"$set": update_dict}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Failed to update document")
+    
+    # Log audit
+    await log_audit(
+        db=db,
+        admin_id=current_user["id"],
+        admin_name=current_user["name"],
+        action="update",
+        target_type="help_document",
+        target_id=doc_id,
+        changes=update_dict
+    )
+    
+    updated_doc = await db.help_documents.find_one({"id": doc_id})
+    return {"message": "Help document updated successfully", "document": HelpDocument(**updated_doc)}
+
+@api_router.delete("/admin/help/documents/{doc_id}")
+async def delete_help_document(
+    doc_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete help document (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    result = await db.help_documents.delete_one({"id": doc_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    # Log audit
+    await log_audit(
+        db=db,
+        admin_id=current_user["id"],
+        admin_name=current_user["name"],
+        action="delete",
+        target_type="help_document",
+        target_id=doc_id
+    )
+    
+    return {"message": "Help document deleted successfully"}
 
 # Include the router in the main app
 app.include_router(api_router)

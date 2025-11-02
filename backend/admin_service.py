@@ -1,241 +1,204 @@
-import { useState, useEffect } from "react";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { RefreshCw, Activity as ActivityIcon, User, Heart, Building2, MessageSquare } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+"""
+Admin Service Functions
+Helper functions for admin endpoints
+"""
+from typing import List, Dict, Any, Optional
+from datetime import datetime, timedelta
+import logging
 
-const API_URL = import.meta.env.VITE_API_URL || '';
+logger = logging.getLogger(__name__)
 
-interface ActivityLog {
-  id: string;
-  user_name: string;
-  user_role: string;
-  activity_type: string;
-  description: string;
-  created_at: string;
-}
 
-interface ActivityFeedProps {
-  token: string;
-}
-
-export const ActivityFeed = ({ token }: ActivityFeedProps) => {
-  const { toast } = useToast();
-  const [activities, setActivities] = useState<ActivityLog[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [typeFilter, setTypeFilter] = useState("all");
-  const [roleFilter, setRoleFilter] = useState("all");
-  const [autoRefresh, setAutoRefresh] = useState(false);
-
-  useEffect(() => {
-    fetchActivities();
-  }, [typeFilter, roleFilter]);
-
-  useEffect(() => {
-    if (autoRefresh) {
-      const interval = setInterval(() => {
-        fetchActivities();
-      }, 30000); // Refresh every 30 seconds
-      return () => clearInterval(interval);
+async def get_platform_analytics(db):
+    """Get comprehensive platform analytics"""
+    
+    # Get all data
+    all_users = await db.users.find({}).to_list(10000)
+    all_donations = await db.donation_applications.find({}).to_list(10000)
+    all_requirements = await db.hospital_requirements.find({}).to_list(10000)
+    all_matches = await db.shortlist.find({}).to_list(10000)
+    all_contacts = await db.contact_history.find({}).to_list(10000)
+    
+    # User stats
+    total_users = len(all_users)
+    donors = len([u for u in all_users if u.get("role") == "donor"])
+    hospitals = len([u for u in all_users if u.get("role") == "hospital"])
+    admins = len([u for u in all_users if u.get("role") == "admin"])
+    
+    # Donation stats
+    total_donations = len(all_donations)
+    pending_donations = len([d for d in all_donations if d.get("status") == "pending"])
+    approved_donations = len([d for d in all_donations if d.get("status") == "approved"])
+    
+    # Requirement stats
+    total_requirements = len(all_requirements)
+    active_requirements = len([r for r in all_requirements if r.get("status") == "active"])
+    
+    # Matching stats
+    total_matches = len(all_matches)
+    total_contacts = len(all_contacts)
+    
+    # Time-based trends (last 7 days)
+    seven_days_ago = datetime.utcnow() - timedelta(days=7)
+    recent_users = len([u for u in all_users if u.get("created_at", datetime.min) >= seven_days_ago])
+    recent_donations = len([d for d in all_donations if d.get("created_at", datetime.min) >= seven_days_ago])
+    recent_requirements = len([r for r in all_requirements if r.get("created_at", datetime.min) >= seven_days_ago])
+    
+    return {
+        "users": {
+            "total": total_users,
+            "donors": donors,
+            "hospitals": hospitals,
+            "admins": admins,
+            "recent_7_days": recent_users
+        },
+        "donations": {
+            "total": total_donations,
+            "pending": pending_donations,
+            "approved": approved_donations,
+            "recent_7_days": recent_donations
+        },
+        "requirements": {
+            "total": total_requirements,
+            "active": active_requirements,
+            "recent_7_days": recent_requirements
+        },
+        "matching": {
+            "total_matches": total_matches,
+            "total_contacts": total_contacts
+        }
     }
-  }, [autoRefresh, typeFilter, roleFilter]);
 
-  const fetchActivities = async () => {
-    try {
-      let url = `${API_URL}/api/admin/activity-logs?limit=50`;
-      if (typeFilter !== "all") url += `&activity_type=${typeFilter}`;
-      if (roleFilter !== "all") url += `&user_role=${roleFilter}`;
 
-      const response = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setActivities(data.logs || []);
-      }
-    } catch (error) {
-      // Silently fail for auto-refresh
-      if (!autoRefresh) {
-        toast({ title: "Failed to fetch activity logs", variant: "destructive" });
-      }
-    } finally {
-      setLoading(false);
+async def get_activity_logs(
+    db,
+    activity_type: Optional[str] = None,
+    user_role: Optional[str] = None,
+    limit: int = 100
+):
+    """Get activity logs with filtering"""
+    filter_dict = {}
+    if activity_type:
+        filter_dict["activity_type"] = activity_type
+    if user_role:
+        filter_dict["user_role"] = user_role
+    
+    logs = await db.activity_logs.find(filter_dict).sort("created_at", -1).to_list(limit)
+    return logs
+
+
+async def get_audit_logs(
+    db,
+    action: Optional[str] = None,
+    target_type: Optional[str] = None,
+    limit: int = 100
+):
+    """Get audit logs with filtering"""
+    filter_dict = {}
+    if action:
+        filter_dict["action"] = action
+    if target_type:
+        filter_dict["target_type"] = target_type
+    
+    logs = await db.audit_logs.find(filter_dict).sort("created_at", -1).to_list(limit)
+    return logs
+
+
+async def create_audit_log(
+    db,
+    admin_id: str,
+    admin_name: str,
+    action: str,
+    target_type: str,
+    target_id: Optional[str] = None,
+    changes: Optional[dict] = None,
+    ip_address: Optional[str] = None
+):
+    """Create audit log entry"""
+    from models import AuditLog
+    
+    audit_log = AuditLog(
+        admin_id=admin_id,
+        admin_name=admin_name,
+        action=action,
+        target_type=target_type,
+        target_id=target_id,
+        changes=changes,
+        ip_address=ip_address
+    )
+    
+    await db.audit_logs.insert_one(audit_log.model_dump())
+    return audit_log
+
+
+async def create_activity_log(
+    db,
+    user_id: str,
+    user_name: str,
+    user_role: str,
+    activity_type: str,
+    description: str,
+    metadata: Optional[dict] = None
+):
+    """Create activity log entry"""
+    from models import ActivityLog
+    
+    activity_log = ActivityLog(
+        user_id=user_id,
+        user_name=user_name,
+        user_role=user_role,
+        activity_type=activity_type,
+        description=description,
+        metadata=metadata or {}
+    )
+    
+    await db.activity_logs.insert_one(activity_log.model_dump())
+    return activity_log
+
+
+async def bulk_approve_donations(db, donation_ids: List[str]):
+    """Bulk approve donation applications"""
+    
+    updated_count = 0
+    for donation_id in donation_ids:
+        result = await db.donation_applications.update_one(
+            {"id": donation_id},
+            {"$set": {"status": "approved", "updated_at": datetime.utcnow()}}
+        )
+        if result.modified_count > 0:
+            updated_count += 1
+    
+    return {
+        "success": True,
+        "updated_count": updated_count,
+        "total_requested": len(donation_ids)
     }
-  };
 
-  const getActivityIcon = (type: string) => {
-    const icons: any = {
-      registration: User,
-      application_submitted: Heart,
-      requirement_posted: Building2,
-      match_made: ActivityIcon,
-      contact_made: MessageSquare,
-      status_change: ActivityIcon
-    };
-    const Icon = icons[type] || ActivityIcon;
-    return <Icon className="h-4 w-4" />;
-  };
 
-  const getActivityColor = (type: string) => {
-    const colors: any = {
-      registration: "text-blue-600 bg-blue-50",
-      application_submitted: "text-green-600 bg-green-50",
-      requirement_posted: "text-purple-600 bg-purple-50",
-      match_made: "text-orange-600 bg-orange-50",
-      contact_made: "text-pink-600 bg-pink-50",
-      status_change: "text-gray-600 bg-gray-50"
-    };
-    return colors[type] || "text-gray-600 bg-gray-50";
-  };
+async def bulk_reject_donations(db, donation_ids: List[str]):
+    """Bulk reject donation applications"""
+    
+    updated_count = 0
+    for donation_id in donation_ids:
+        result = await db.donation_applications.update_one(
+            {"id": donation_id},
+            {"$set": {"status": "cancelled", "updated_at": datetime.utcnow()}}
+        )
+        if result.modified_count > 0:
+            updated_count += 1
+    
+    return {
+        "success": True,
+        "updated_count": updated_count,
+        "total_requested": len(donation_ids)
+    }
 
-  if (loading) {
-    return <div className="text-center py-8">Loading activity feed...</div>;
-  }
 
-  return (
-    <div className="space-y-4">
-      {/* Filters and Controls */}
-      <div className="flex flex-wrap gap-4 items-center justify-between">
-        <div className="flex gap-2">
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Activity Type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Activities</SelectItem>
-              <SelectItem value="registration">Registrations</SelectItem>
-              <SelectItem value="application_submitted">Applications</SelectItem>
-              <SelectItem value="requirement_posted">Requirements</SelectItem>
-              <SelectItem value="match_made">Matches</SelectItem>
-              <SelectItem value="contact_made">Contacts</SelectItem>
-              <SelectItem value="status_change">Status Changes</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select value={roleFilter} onValueChange={setRoleFilter}>
-            <SelectTrigger className="w-32">
-              <SelectValue placeholder="Role" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Roles</SelectItem>
-              <SelectItem value="donor">Donors</SelectItem>
-              <SelectItem value="hospital">Hospitals</SelectItem>
-              <SelectItem value="admin">Admins</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex gap-2 items-center">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => fetchActivities()}
-            data-testid="refresh-activity-btn"
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
-          
-          <Button
-            variant={autoRefresh ? "default" : "outline"}
-            size="sm"
-            onClick={() => setAutoRefresh(!autoRefresh)}
-            data-testid="auto-refresh-toggle"
-          >
-            Auto-refresh {autoRefresh ? "ON" : "OFF"}
-          </Button>
-        </div>
-      </div>
-
-      {/* Activity Timeline */}
-      <div className="space-y-3">
-        {activities.length === 0 ? (
-          <Card className="p-8 text-center">
-            <p className="text-muted-foreground">No recent activity</p>
-          </Card>
-        ) : (
-          activities.map((activity, index) => (
-            <Card key={activity.id} className="p-4 hover:shadow-md transition-shadow">
-              <div className="flex items-start gap-4">
-                {/* Icon */}
-                <div className={`p-2 rounded-full ${getActivityColor(activity.activity_type)}`}>
-                  {getActivityIcon(activity.activity_type)}
-                </div>
-
-                {/* Content */}
-                <div className="flex-1">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-medium">{activity.user_name}</span>
-                        <Badge variant="outline" className="capitalize text-xs">
-                          {activity.user_role}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        {activity.description}
-                      </p>
-                    </div>
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">
-                      {format(new Date(activity.created_at), 'MMM d, h:mm a')}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </Card>
-          ))
-        )}
-      </div>
-
-      {/* Stats Summary */}
-      <Card className="p-4 mt-6">
-        <div className="grid grid-cols-3 md:grid-cols-6 gap-4 text-center">
-          <div>
-            <p className="text-sm text-muted-foreground mb-1">Total</p>
-            <p className="text-xl font-bold">{activities.length}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground mb-1">Donors</p>
-            <p className="text-xl font-bold text-green-600">
-              {activities.filter(a => a.user_role === 'donor').length}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground mb-1">Hospitals</p>
-            <p className="text-xl font-bold text-blue-600">
-              {activities.filter(a => a.user_role === 'hospital').length}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground mb-1">Registrations</p>
-            <p className="text-xl font-bold">
-              {activities.filter(a => a.activity_type === 'registration').length}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground mb-1">Matches</p>
-            <p className="text-xl font-bold text-orange-600">
-              {activities.filter(a => a.activity_type === 'match_made').length}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground mb-1">Contacts</p>
-            <p className="text-xl font-bold text-purple-600">
-              {activities.filter(a => a.activity_type === 'contact_made').length}
-            </p>
-          </div>
-        </div>
-      </Card>
-    </div>
-  );
-};
+async def get_user_activity_timeline(db, user_id: str, limit: int = 50):
+    """Get activity timeline for a specific user"""
+    
+    activities = await db.activity_logs.find(
+        {"user_id": user_id}
+    ).sort("created_at", -1).to_list(limit)
+    
+    return activities
