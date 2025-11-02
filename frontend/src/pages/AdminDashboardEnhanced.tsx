@@ -63,6 +63,7 @@ import { BroadcastNotifications } from "@/components/admin/BroadcastNotification
 import { PlatformSettings } from "@/components/admin/PlatformSettings";
 import { AuditLogsTab } from "@/components/admin/AuditLogsTab";
 import { MatchingInsightsTab } from "@/components/admin/MatchingInsightsTab";
+import { SupportManagementTab } from "@/components/admin/SupportManagementTab";
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -625,6 +626,10 @@ const AdminDashboardEnhanced = () => {
                 <FileText className="h-4 w-4 mr-2" />
                 Audit Logs
               </TabsTrigger>
+              <TabsTrigger value="support" data-testid="tab-support">
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Support
+              </TabsTrigger>
             </TabsList>
 
             {/* Community Posts Tab */}
@@ -961,6 +966,11 @@ const AdminDashboardEnhanced = () => {
             {/* Audit Logs Tab */}
             <TabsContent value="audit">
               <AuditLogsTab token={token} />
+            </TabsContent>
+
+            {/* Support Management Tab */}
+            <TabsContent value="support">
+              <SupportManagementTab />
             </TabsContent>
           </Tabs>
         </div>

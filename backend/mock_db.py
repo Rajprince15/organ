@@ -4,7 +4,7 @@ This provides an in-memory database that mimics Motor's async API.
 """
 from typing import Dict, List, Any, Optional
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 class MockCollection:
