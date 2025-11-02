@@ -8,6 +8,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import DonorRegistration from "./pages/DonorRegistration";
 import DonorDashboard from "./pages/DonorDashboard";
+import DonorMatchingRequirements from "./pages/DonorMatchingRequirements";
 import HospitalDashboard from "./pages/HospitalDashboard";
 import EnhancedDonorListPage from "./pages/EnhancedDonorListPage";
 import RecipientPortal from "./pages/RecipientPortal";
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="/donate" element={<DonorRegistration />} />
             <Route path="/donor-registration" element={<DonorRegistration />} />
             <Route path="/donor-dashboard" element={<DonorDashboard />} />
+            <Route path="/donor-matching-requirements" element={<DonorMatchingRequirements />} />
             <Route path="/hospital-dashboard" element={<HospitalDashboard />} />
             <Route path="/donor-list" element={<EnhancedDonorListPage />} />
             <Route path="/recipient-portal" element={<RecipientPortal />} />

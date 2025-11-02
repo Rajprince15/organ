@@ -9,8 +9,7 @@ import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { DonorMatchedRequirements } from "@/components/DonorMatchedRequirements";
-import { Heart, Edit, Trash2, Calendar, Mail, Phone, Droplet, AlertCircle, CheckCircle, Clock, XCircle, Download, Award, Users, Sparkles, MapPin, Quote } from "lucide-react";
+import { Heart, Edit, Trash2, Calendar, Mail, Phone, Droplet, AlertCircle, CheckCircle, Clock, XCircle, Download, Award, Users, Sparkles, MapPin, Quote, Target, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { QRCodeCanvas } from 'qrcode.react';
 import html2canvas from 'html2canvas';
@@ -56,6 +55,7 @@ const DonorDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showDonorCard, setShowDonorCard] = useState(false);
+  const [matchingCount, setMatchingCount] = useState(0);
   const [formData, setFormData] = useState({
     full_name: "",
     email: "",
@@ -165,6 +165,7 @@ const DonorDashboard = () => {
       return;
     }
     fetchApplication();
+    fetchMatchingCount();
   }, [user, navigate]);
 
   const fetchApplication = async () => {
@@ -197,6 +198,23 @@ const DonorDashboard = () => {
       console.error('Failed to fetch application:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchMatchingCount = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/matches/requirements/me`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setMatchingCount(data.matches?.length || 0);
+      }
+    } catch (error) {
+      console.error('Failed to fetch matching count:', error);
     }
   };
 
@@ -444,6 +462,48 @@ const DonorDashboard = () => {
             </Card>
           </div>
 
+          {/* Matching Requirements Card - Only show if approved */}
+          {application.status === 'approved' && (
+            <Card 
+              className="p-6 mb-8 bg-gradient-to-br from-purple-50 to-indigo-50 border-purple-200 hover:shadow-strong transition-all cursor-pointer"
+              onClick={() => navigate('/donor-matching-requirements')}
+              data-testid="matching-requirements-card"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 bg-purple-100 rounded-full flex items-center justify-center">
+                    <Target className="h-7 w-7 text-purple-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-semibold text-purple-900 mb-1">
+                      Matching Requirements
+                    </h3>
+                    <p className="text-sm text-purple-700">
+                      {matchingCount > 0 
+                        ? `${matchingCount} hospital${matchingCount !== 1 ? 's' : ''} need your help`
+                        : 'No matching requirements at this time'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  {matchingCount > 0 && (
+                    <div className="text-center px-4 py-2 bg-purple-100 rounded-lg">
+                      <p className="text-3xl font-bold text-purple-600">{matchingCount}</p>
+                      <p className="text-xs text-purple-700">Matches</p>
+                    </div>
+                  )}
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    className="text-purple-600 hover:text-purple-700 hover:bg-purple-100"
+                  >
+                    <ArrowRight className="h-6 w-6" />
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          )}
+
           {/* Profile Completion Tips */}
           {profileTips.length > 0 && (
             <Card className="p-6 mb-8 bg-gradient-to-r from-amber-50 to-yellow-50 border-amber-200">
@@ -484,13 +544,6 @@ const DonorDashboard = () => {
               </div>
             </div>
           </Card>
-
-          {/* Matching Requirements Section */}
-          {application.status === 'approved' && (
-            <div className="mb-8">
-              <DonorMatchedRequirements />
-            </div>
-          )}
 
           {/* Application Details or Edit Form */}
           {!isEditing ? (
