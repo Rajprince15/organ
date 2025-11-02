@@ -15,6 +15,7 @@ import HospitalShortlist from "./pages/HospitalShortlist";
 import HospitalCompatibleDonors from "./pages/HospitalCompatibleDonors";
 import EnhancedDonorListPage from "./pages/EnhancedDonorListPage";
 import RecipientPortal from "./pages/RecipientPortal";
+import AdminDashboard from "./pages/AdminDashboard";
 import Community from "./pages/Community";
 import About from "./pages/About";
 import Resources from "./pages/Resources";
@@ -46,6 +47,7 @@ const App = () => (
             <Route path="/hospital-compatible-donors" element={<HospitalCompatibleDonors />} />
             <Route path="/donor-list" element={<EnhancedDonorListPage />} />
             <Route path="/recipient-portal" element={<RecipientPortal />} />
+            <Route path="/admin-dashboard" element={<AdminDashboard />} />
             <Route path="/community" element={<Community />} />
             <Route path="/events" element={<Events />} />
             <Route path="/about" element={<About />} />

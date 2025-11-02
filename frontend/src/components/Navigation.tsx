@@ -88,6 +88,19 @@ const Navigation = () => {
                     </Button>
                   </Link>
                 )}
+                {/* Show Admin Dashboard button for admins */}
+                {user.role === 'admin' && (
+                  <Link to="/admin-dashboard">
+                    <Button 
+                      variant="outline" 
+                      className="border-accent text-accent hover:bg-accent hover:text-accent-foreground transition-smooth"
+                      data-testid="nav-admin-dashboard-button"
+                    >
+                      <User className="h-4 w-4 mr-2" />
+                      Admin Dashboard
+                    </Button>
+                  </Link>
+                )}
                 
                 {/* Show Donate button only for donors and admins */}
                 {(user.role === 'donor' || user.role === 'admin') && (

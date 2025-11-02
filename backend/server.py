@@ -914,6 +914,399 @@ async def refresh_matches(
     else:
         raise HTTPException(status_code=403, detail="Invalid user role")
 
+# Admin Routes
+@api_router.get("/admin/stats")
+async def get_admin_stats(
+    current_user: dict = Depends(get_current_user)
+):
+    """Get admin dashboard statistics"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Count users by role
+    all_users = await db.users.find({}).to_list(10000)
+    total_users = len(all_users)
+    donors_count = len([u for u in all_users if u.get("role") == "donor"])
+    hospitals_count = len([u for u in all_users if u.get("role") == "hospital"])
+    admins_count = len([u for u in all_users if u.get("role") == "admin"])
+    
+    # Count donation applications by status
+    all_donations = await db.donation_applications.find({}).to_list(10000)
+    total_donations = len(all_donations)
+    pending_donations = len([d for d in all_donations if d.get("status") == "pending"])
+    approved_donations = len([d for d in all_donations if d.get("status") == "approved"])
+    cancelled_donations = len([d for d in all_donations if d.get("status") == "cancelled"])
+    
+    # Count hospital requirements by status
+    all_requirements = await db.hospital_requirements.find({}).to_list(10000)
+    total_requirements = len(all_requirements)
+    active_requirements = len([r for r in all_requirements if r.get("status") == "active"])
+    fulfilled_requirements = len([r for r in all_requirements if r.get("status") == "fulfilled"])
+    cancelled_requirements = len([r for r in all_requirements if r.get("status") == "cancelled"])
+    
+    # Count matches (shortlist and contact history)
+    all_shortlists = await db.shortlist.find({}).to_list(10000)
+    all_contacts = await db.contact_history.find({}).to_list(10000)
+    total_matches = len(all_shortlists)
+    total_contacts = len(all_contacts)
+    
+    return {
+        "users": {
+            "total": total_users,
+            "donors": donors_count,
+            "hospitals": hospitals_count,
+            "admins": admins_count
+        },
+        "donations": {
+            "total": total_donations,
+            "pending": pending_donations,
+            "approved": approved_donations,
+            "cancelled": cancelled_donations
+        },
+        "requirements": {
+            "total": total_requirements,
+            "active": active_requirements,
+            "fulfilled": fulfilled_requirements,
+            "cancelled": cancelled_requirements
+        },
+        "matches": {
+            "total_shortlisted": total_matches,
+            "total_contacts": total_contacts
+        }
+    }
+
+@api_router.get("/admin/users")
+async def get_all_users_admin(
+    current_user: dict = Depends(get_current_user),
+    role: Optional[str] = None,
+    page: int = 1,
+    limit: int = 50
+):
+    """Get all users with filtering (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Build filter
+    filter_dict = {}
+    if role:
+        filter_dict["role"] = role
+    
+    # Get all users
+    all_users = await db.users.find(filter_dict).to_list(10000)
+    
+    # Remove hashed passwords from response
+    for user in all_users:
+        user.pop("hashed_password", None)
+    
+    # Pagination
+    total = len(all_users)
+    start_idx = (page - 1) * limit
+    end_idx = start_idx + limit
+    paginated_users = all_users[start_idx:end_idx]
+    
+    return {
+        "users": paginated_users,
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "total_pages": (total + limit - 1) // limit
+    }
+
+@api_router.put("/admin/users/{user_id}")
+async def update_user_admin(
+    user_id: str,
+    updates: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update any user (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Don't allow updating password this way
+    updates.pop("hashed_password", None)
+    updates.pop("password", None)
+    updates["updated_at"] = datetime.utcnow()
+    
+    result = await db.users.update_one(
+        {"id": user_id},
+        {"$set": updates}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    updated_user = await db.users.find_one({"id": user_id})
+    updated_user.pop("hashed_password", None)
+    
+    return {"message": "User updated successfully", "user": updated_user}
+
+@api_router.delete("/admin/users/{user_id}")
+async def delete_user_admin(
+    user_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete any user (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Prevent deleting yourself
+    if user_id == current_user["id"]:
+        raise HTTPException(status_code=400, detail="Cannot delete your own account")
+    
+    result = await db.users.delete_one({"id": user_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return {"message": "User deleted successfully"}
+
+@api_router.get("/admin/donations")
+async def get_all_donations_admin(
+    current_user: dict = Depends(get_current_user),
+    status: Optional[str] = None,
+    page: int = 1,
+    limit: int = 50
+):
+    """Get all donation applications (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Build filter
+    filter_dict = {}
+    if status:
+        filter_dict["status"] = status
+    
+    # Get all donations
+    all_donations = await db.donation_applications.find(filter_dict).sort("created_at", -1).to_list(10000)
+    
+    # Pagination
+    total = len(all_donations)
+    start_idx = (page - 1) * limit
+    end_idx = start_idx + limit
+    paginated_donations = all_donations[start_idx:end_idx]
+    
+    return {
+        "donations": [DonationApplication(**d) for d in paginated_donations],
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "total_pages": (total + limit - 1) // limit
+    }
+
+@api_router.put("/admin/donations/{donation_id}")
+async def update_donation_admin(
+    donation_id: str,
+    updates: DonationApplicationUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update any donation application (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    donation = await db.donation_applications.find_one({"id": donation_id})
+    if not donation:
+        raise HTTPException(status_code=404, detail="Donation application not found")
+    
+    old_status = donation.get("status")
+    
+    # Update only provided fields
+    update_dict = {k: v for k, v in updates.model_dump().items() if v is not None}
+    update_dict["updated_at"] = datetime.utcnow()
+    
+    result = await db.donation_applications.update_one(
+        {"id": donation_id},
+        {"$set": update_dict}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Failed to update application")
+    
+    # Fetch updated donation
+    updated_donation = await db.donation_applications.find_one({"id": donation_id})
+    
+    # Send notification if status changed
+    new_status = update_dict.get("status")
+    if new_status and new_status != old_status:
+        await create_status_change_notification(
+            db=db,
+            user_id=donation.get("donor_id"),
+            status_type="Donation Application",
+            old_status=old_status,
+            new_status=new_status,
+            item_name="donation application"
+        )
+    
+    return {"message": "Donation application updated successfully", "donation": DonationApplication(**updated_donation)}
+
+@api_router.delete("/admin/donations/{donation_id}")
+async def delete_donation_admin(
+    donation_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete any donation application (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    result = await db.donation_applications.delete_one({"id": donation_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Donation application not found")
+    
+    return {"message": "Donation application deleted successfully"}
+
+@api_router.get("/admin/requirements")
+async def get_all_requirements_admin(
+    current_user: dict = Depends(get_current_user),
+    status: Optional[str] = None,
+    page: int = 1,
+    limit: int = 50
+):
+    """Get all hospital requirements (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Build filter
+    filter_dict = {}
+    if status:
+        filter_dict["status"] = status
+    
+    # Get all requirements
+    all_requirements = await db.hospital_requirements.find(filter_dict).sort("created_at", -1).to_list(10000)
+    
+    # Pagination
+    total = len(all_requirements)
+    start_idx = (page - 1) * limit
+    end_idx = start_idx + limit
+    paginated_requirements = all_requirements[start_idx:end_idx]
+    
+    return {
+        "requirements": [HospitalRequirement(**r) for r in paginated_requirements],
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "total_pages": (total + limit - 1) // limit
+    }
+
+@api_router.put("/admin/requirements/{requirement_id}")
+async def update_requirement_admin(
+    requirement_id: str,
+    updates: HospitalRequirementUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update any hospital requirement (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    requirement = await db.hospital_requirements.find_one({"id": requirement_id})
+    if not requirement:
+        raise HTTPException(status_code=404, detail="Requirement not found")
+    
+    # Update only provided fields
+    update_dict = {k: v for k, v in updates.model_dump().items() if v is not None}
+    update_dict["updated_at"] = datetime.utcnow()
+    
+    result = await db.hospital_requirements.update_one(
+        {"id": requirement_id},
+        {"$set": update_dict}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Failed to update requirement")
+    
+    # Fetch updated requirement
+    updated_requirement = await db.hospital_requirements.find_one({"id": requirement_id})
+    
+    return {"message": "Requirement updated successfully", "requirement": HospitalRequirement(**updated_requirement)}
+
+@api_router.delete("/admin/requirements/{requirement_id}")
+async def delete_requirement_admin(
+    requirement_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete any hospital requirement (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    result = await db.hospital_requirements.delete_one({"id": requirement_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Requirement not found")
+    
+    return {"message": "Requirement deleted successfully"}
+
+@api_router.get("/admin/analytics")
+async def get_admin_analytics(
+    current_user: dict = Depends(get_current_user)
+):
+    """Get match analytics (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Get all shortlists
+    all_shortlists = await db.shortlist.find({}).sort("added_at", -1).to_list(100)
+    
+    # Get all contact history
+    all_contacts = await db.contact_history.find({}).sort("contacted_at", -1).to_list(100)
+    
+    # Get recent activity from notifications
+    recent_notifications = await db.notifications.find({}).sort("created_at", -1).to_list(50)
+    
+    return {
+        "shortlists": [Shortlist(**s) for s in all_shortlists],
+        "contacts": [ContactHistory(**c) for c in all_contacts],
+        "recent_activity": [Notification(**n) for n in recent_notifications]
+    }
+
+@api_router.get("/admin/activity")
+async def get_recent_activity(
+    current_user: dict = Depends(get_current_user),
+    limit: int = 50
+):
+    """Get recent activity feed (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Collect recent items from different collections
+    recent_donations = await db.donation_applications.find({}).sort("created_at", -1).to_list(20)
+    recent_requirements = await db.hospital_requirements.find({}).sort("created_at", -1).to_list(20)
+    recent_contacts = await db.contact_history.find({}).sort("contacted_at", -1).to_list(20)
+    
+    # Format activity items
+    activity = []
+    
+    for donation in recent_donations:
+        activity.append({
+            "type": "donation",
+            "action": f"New donation application: {donation.get('full_name')}",
+            "status": donation.get("status"),
+            "timestamp": donation.get("created_at"),
+            "id": donation.get("id")
+        })
+    
+    for req in recent_requirements:
+        activity.append({
+            "type": "requirement",
+            "action": f"New requirement: {req.get('organ_required')} for {req.get('patient_name')}",
+            "status": req.get("status"),
+            "timestamp": req.get("created_at"),
+            "id": req.get("id")
+        })
+    
+    for contact in recent_contacts:
+        activity.append({
+            "type": "contact",
+            "action": f"Hospital contacted donor: {contact.get('donor_name')}",
+            "status": "completed",
+            "timestamp": contact.get("contacted_at"),
+            "id": contact.get("id")
+        })
+    
+    # Sort by timestamp and limit
+    activity.sort(key=lambda x: x.get("timestamp", datetime.min), reverse=True)
+    activity = activity[:limit]
+    
+    return {"activity": activity}
+
 # Include the router in the main app
 app.include_router(api_router)
 
