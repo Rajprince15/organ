@@ -672,6 +672,82 @@ async def delete_notification_endpoint(
     return {"message": "Notification deleted"}
 
 # Smart Matching Routes
+@api_router.get("/matches/donors/all")
+async def get_all_matched_donors(
+    current_user: dict = Depends(get_current_user),
+    limit: int = 50
+):
+    """Get all matched donors across all hospital requirements (aggregated)"""
+    if current_user.get("role") != "hospital":
+        raise HTTPException(status_code=403, detail="Only hospitals can access donor matches")
+    
+    # Get all hospital's active requirements
+    requirements = await db.hospital_requirements.find({
+        "hospital_id": current_user["id"],
+        "status": "active"
+    }).to_list(1000)
+    
+    if not requirements:
+        return {
+            "matches": [],
+            "total_matches": 0,
+            "message": "No active requirements found"
+        }
+    
+    # Get all approved donors
+    all_donors = await db.donation_applications.find({"status": "approved"}).to_list(10000)
+    
+    # Aggregate matches from all requirements
+    donor_matches = {}  # donor_id -> {donor, best_score, requirements}
+    
+    for requirement in requirements:
+        matches = match_donors_for_requirement(requirement, all_donors)
+        
+        for donor, score, breakdown in matches:
+            donor_id = donor["donor_id"]
+            
+            if donor_id not in donor_matches:
+                donor_matches[donor_id] = {
+                    "donor": donor,
+                    "best_score": score,
+                    "matching_requirements": []
+                }
+            else:
+                # Update best score if this is better
+                if score > donor_matches[donor_id]["best_score"]:
+                    donor_matches[donor_id]["best_score"] = score
+            
+            # Add requirement to matching list
+            donor_matches[donor_id]["matching_requirements"].append({
+                "requirement_id": requirement["id"],
+                "patient_name": requirement["patient_name"],
+                "organ_required": requirement["organ_required"],
+                "blood_group": requirement["blood_group"],
+                "urgency_level": requirement["urgency_level"],
+                "match_score": score,
+                "score_breakdown": breakdown
+            })
+    
+    # Convert to list and sort by best score
+    result = []
+    for donor_data in donor_matches.values():
+        result.append({
+            "donor": DonationApplication(**donor_data["donor"]),
+            "match_score": donor_data["best_score"],
+            "matching_requirements": donor_data["matching_requirements"]
+        })
+    
+    # Sort by match score descending
+    result.sort(key=lambda x: x["match_score"], reverse=True)
+    
+    # Limit results
+    result = result[:limit]
+    
+    return {
+        "matches": result,
+        "total_matches": len(result)
+    }
+
 @api_router.get("/matches/donors/{requirement_id}")
 async def get_matched_donors(
     requirement_id: str,

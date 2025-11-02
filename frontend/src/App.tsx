@@ -10,6 +10,9 @@ import DonorRegistration from "./pages/DonorRegistration";
 import DonorDashboard from "./pages/DonorDashboard";
 import DonorMatchingRequirements from "./pages/DonorMatchingRequirements";
 import HospitalDashboard from "./pages/HospitalDashboard";
+import HospitalRequirements from "./pages/HospitalRequirements";
+import HospitalShortlist from "./pages/HospitalShortlist";
+import HospitalCompatibleDonors from "./pages/HospitalCompatibleDonors";
 import EnhancedDonorListPage from "./pages/EnhancedDonorListPage";
 import RecipientPortal from "./pages/RecipientPortal";
 import Community from "./pages/Community";
@@ -38,6 +41,9 @@ const App = () => (
             <Route path="/donor-dashboard" element={<DonorDashboard />} />
             <Route path="/donor-matching-requirements" element={<DonorMatchingRequirements />} />
             <Route path="/hospital-dashboard" element={<HospitalDashboard />} />
+            <Route path="/hospital-requirements" element={<HospitalRequirements />} />
+            <Route path="/hospital-shortlist" element={<HospitalShortlist />} />
+            <Route path="/hospital-compatible-donors" element={<HospitalCompatibleDonors />} />
             <Route path="/donor-list" element={<EnhancedDonorListPage />} />
             <Route path="/recipient-portal" element={<RecipientPortal />} />
             <Route path="/community" element={<Community />} />

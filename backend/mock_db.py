@@ -802,6 +802,88 @@ def seed_mock_data(db: MockDatabase):
         notif_id = notification['id']
         db.notifications._data[notif_id] = notification.copy()
     
+    # Create sample shortlist entries
+    sample_shortlist = [
+        {
+            "id": str(uuid.uuid4()),
+            "hospital_id": hospital_id,
+            "donor_id": donor_id_1,
+            "donor_name": "John Donor",
+            "donor_email": "donor@organconnect.com",
+            "blood_group": "O+",
+            "organs": ["Heart", "Kidneys", "Liver", "Corneas"],
+            "notes": "Strong match for heart requirement, contacted and confirmed availability",
+            "added_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "hospital_id": hospital_id,
+            "donor_id": donor_id_5,
+            "donor_name": "David Patel",
+            "donor_email": "david.patel@email.com",
+            "blood_group": "O-",
+            "organs": ["Heart", "Kidneys", "Lungs", "Liver", "Corneas", "Pancreas"],
+            "notes": "Universal donor, excellent health profile",
+            "added_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "hospital_id": hospital_id,
+            "donor_id": donor_id_2,
+            "donor_name": "Sarah Wilson",
+            "donor_email": "sarah.wilson@email.com",
+            "blood_group": "A+",
+            "organs": ["Kidneys", "Liver", "Pancreas"],
+            "notes": "Perfect match for kidney requirement",
+            "added_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "hospital_id": hospital_id,
+            "donor_id": donor_id_9,
+            "donor_name": "James Martinez",
+            "donor_email": "james.martinez@email.com",
+            "blood_group": "O+",
+            "organs": ["Heart", "Kidneys", "Liver", "Heart Valves"],
+            "notes": "Backup option for heart transplant",
+            "added_at": datetime.utcnow()
+        }
+    ]
+    
+    # Insert shortlist entries
+    for shortlist_item in sample_shortlist:
+        item_id = shortlist_item['id']
+        db.shortlist._data[item_id] = shortlist_item.copy()
+    
+    # Create sample contact history
+    sample_contacts = [
+        {
+            "id": str(uuid.uuid4()),
+            "hospital_id": hospital_id,
+            "donor_id": donor_id_1,
+            "donor_name": "John Donor",
+            "donor_email": "donor@organconnect.com",
+            "contact_method": "phone",
+            "notes": "Initial contact made, donor confirmed interest in heart donation",
+            "contacted_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "hospital_id": hospital_id,
+            "donor_id": donor_id_5,
+            "donor_name": "David Patel",
+            "donor_email": "david.patel@email.com",
+            "contact_method": "email",
+            "notes": "Sent detailed information about the transplant process",
+            "contacted_at": datetime.utcnow()
+        }
+    ]
+    
+    # Insert contact history
+    for contact in sample_contacts:
+        contact_id = contact['id']
+        db.contact_history._data[contact_id] = contact.copy()
+    
     print("Mock database seeded with test users:")
     print("   - donor@organconnect.com / donor123 (with donation application)")
     print("   - hospital@organconnect.com / hospital123 (with requirements)")
@@ -809,4 +891,5 @@ def seed_mock_data(db: MockDatabase):
     print(f"   - Created {len(sample_donations)} approved donor applications")
     print(f"   - Created {len(sample_requirements)} hospital requirements")
     print(f"   - Created {len(sample_notifications)} sample notifications")
-    print(f"   - Created sample contact history and shortlist entries")
+    print(f"   - Created {len(sample_shortlist)} shortlist entries")
+    print(f"   - Created {len(sample_contacts)} contact history entries")
