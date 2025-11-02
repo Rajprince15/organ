@@ -1275,6 +1275,459 @@ def seed_mock_data(db: MockDatabase):
     
     db.algorithm_config._data[default_algorithm_config['id']] = default_algorithm_config.copy()
 
+    # ============================================
+    # PHASE 3B - SUPPORT SYSTEM SEED DATA
+    # ============================================
+    
+    # Create sample FAQs
+    admin_id = str(uuid.uuid4())
+    
+    sample_faqs = [
+        {
+            "id": str(uuid.uuid4()),
+            "question": "How do I register as an organ donor?",
+            "answer": "To register as an organ donor, click on 'Become a Donor' on our homepage, fill out the registration form with your personal details, select the organs you wish to donate, and submit. You'll receive a confirmation email with your donor card.",
+            "category": "Registration",
+            "order": 1,
+            "is_published": True,
+            "created_by": admin_id,
+            "created_by_name": "Admin Team",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "question": "What organs can I donate?",
+            "answer": "You can donate organs including Heart, Lungs, Liver, Kidneys, Pancreas, Intestines, as well as tissues like Corneas, Skin, Heart Valves, Bone, and Blood vessels. The eligibility for each organ depends on various medical factors.",
+            "category": "Donation Process",
+            "order": 2,
+            "is_published": True,
+            "created_by": admin_id,
+            "created_by_name": "Admin Team",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "question": "Is there an age limit for organ donation?",
+            "answer": "There is no strict age limit for organ donation. People of all ages can register as donors. Medical professionals will determine at the time of death which organs and tissues are suitable for donation based on health condition.",
+            "category": "Eligibility",
+            "order": 3,
+            "is_published": True,
+            "created_by": admin_id,
+            "created_by_name": "Admin Team",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "question": "Will organ donation affect my medical care?",
+            "answer": "No, absolutely not. Your decision to be an organ donor will not affect the quality of medical care you receive. Doctors will do everything possible to save your life first. Organ donation is only considered after all life-saving efforts have failed.",
+            "category": "Medical",
+            "order": 4,
+            "is_published": True,
+            "created_by": admin_id,
+            "created_by_name": "Admin Team",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "question": "Can my family override my decision to donate?",
+            "answer": "Legally, your registered consent is binding. However, we always involve families in the process out of respect. It's important to discuss your decision with your family so they understand and support your choice.",
+            "category": "Legal",
+            "order": 5,
+            "is_published": True,
+            "created_by": admin_id,
+            "created_by_name": "Admin Team",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "question": "How are organ recipients chosen?",
+            "answer": "Recipients are chosen based on medical compatibility (blood type, tissue type, organ size), urgency of need, time on waiting list, and geographical proximity. The matching process is handled by medical professionals following strict ethical guidelines.",
+            "category": "Matching Process",
+            "order": 6,
+            "is_published": True,
+            "created_by": admin_id,
+            "created_by_name": "Admin Team",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "question": "Is organ donation against any religion?",
+            "answer": "Most major religions support organ donation as an act of charity and compassion. However, beliefs vary within religions and families. We encourage you to consult with your religious leaders if you have concerns.",
+            "category": "Religious",
+            "order": 7,
+            "is_published": True,
+            "created_by": admin_id,
+            "created_by_name": "Admin Team",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "question": "Can I change my mind after registering?",
+            "answer": "Yes, you can update or cancel your registration at any time. Simply log into your account, go to your donor profile, and make the desired changes. Your wishes will be respected.",
+            "category": "Registration",
+            "order": 8,
+            "is_published": True,
+            "created_by": admin_id,
+            "created_by_name": "Admin Team",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "question": "What happens to my body after organ donation?",
+            "answer": "Organ donation is performed with the same care and respect as any other surgery. After donation, your body is released to your family for funeral arrangements. The donation process does not delay funeral plans or change the appearance of the body.",
+            "category": "Process",
+            "order": 9,
+            "is_published": True,
+            "created_by": admin_id,
+            "created_by_name": "Admin Team",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "question": "How can hospitals access donor information?",
+            "answer": "Registered hospitals can search for compatible donors through our secure platform. They can view donor profiles, check compatibility, and initiate contact through the system while maintaining donor privacy and following all regulatory guidelines.",
+            "category": "For Hospitals",
+            "order": 10,
+            "is_published": True,
+            "created_by": admin_id,
+            "created_by_name": "Admin Team",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }
+    ]
+    
+    # Insert FAQs
+    for faq in sample_faqs:
+        faq_id = faq['id']
+        db.faqs._data[faq_id] = faq.copy()
+    
+    # Create sample help documents
+    sample_help_docs = [
+        {
+            "id": str(uuid.uuid4()),
+            "title": "Getting Started as a Donor",
+            "content": """
+# Getting Started as a Donor
+
+Welcome to the Organ Donation Platform! This guide will help you get started with registering as an organ donor.
+
+## Step 1: Create an Account
+1. Click on 'Register' in the top right corner
+2. Choose 'Donor' as your role
+3. Fill in your email, name, and create a secure password
+4. Verify your email address
+
+## Step 2: Complete Your Donor Profile
+1. Log in to your account
+2. Navigate to 'Donor Registration'
+3. Fill out the detailed form including:
+   - Personal information (name, DOB, contact details)
+   - Medical information (blood group, medical history)
+   - Select organs you wish to donate
+   - Provide consent
+
+## Step 3: After Registration
+- You'll receive a confirmation email with your donor card
+- Your profile will be reviewed by our medical team
+- Once approved, you'll be added to the donor registry
+- Hospitals can view your profile when searching for compatible donors
+
+## Important Tips
+- Keep your information updated
+- Discuss your decision with your family
+- Carry your donor card or note it on your driver's license
+- You can change your donation preferences anytime
+
+## Need Help?
+If you have questions, check our FAQs or create a support ticket from your dashboard.
+            """,
+            "category": "Getting Started",
+            "tags": ["donor", "registration", "beginner"],
+            "is_published": True,
+            "author_id": admin_id,
+            "author_name": "Admin Team",
+            "views": 245,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "title": "Hospital Guide: Finding Compatible Donors",
+            "content": """
+# Hospital Guide: Finding Compatible Donors
+
+This guide explains how hospitals can effectively use the platform to find compatible organ donors.
+
+## Accessing the Donor Database
+1. Log in with your hospital credentials
+2. Navigate to 'Donor List' or 'Compatible Donors'
+3. Use filters to narrow your search:
+   - Organ type
+   - Blood group
+   - Age range
+   - Location
+   - Availability status
+
+## Advanced Matching System
+Our platform uses intelligent algorithms to match donors with recipients based on:
+- Medical compatibility (blood type, tissue matching)
+- Geographical proximity
+- Urgency level of requirement
+- Donor preferences
+
+## Creating a Requirement
+1. Go to 'Requirements' section
+2. Click 'Create New Requirement'
+3. Fill in patient details:
+   - Patient information
+   - Required organ
+   - Urgency level
+   - Medical history
+4. Our system will automatically find and notify compatible donors
+
+## Shortlist Feature
+- Add promising donors to your shortlist
+- Add notes for your medical team
+- Track contact history
+- Export data for medical reviews
+
+## Contact and Privacy
+- All donor contacts are logged
+- Respect donor privacy at all times
+- Follow hospital ethics guidelines
+- Use the platform's messaging system for initial contact
+
+## Support
+For technical issues or matching questions, contact our support team through the admin panel.
+            """,
+            "category": "For Hospitals",
+            "tags": ["hospital", "matching", "search"],
+            "is_published": True,
+            "author_id": admin_id,
+            "author_name": "Admin Team",
+            "views": 167,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "title": "Understanding the Matching Algorithm",
+            "content": """
+# Understanding the Matching Algorithm
+
+Our platform uses a sophisticated scoring algorithm to match donors with recipients.
+
+## Scoring Components
+
+### 1. Organ Match (100 points)
+- Exact organ match required
+- Base score for compatible organ
+
+### 2. Blood Compatibility (0-50 points)
+- Perfect match (O to O, A to A, etc.): 50 points
+- Compatible match (O to any): 40 points
+- Partial compatibility: 30 points
+
+### 3. Location Proximity (0-30 points)
+- Same city: 30 points
+- Same state: 20 points
+- Different state: 10 points
+- Reduces organ transport time
+
+### 4. Age Suitability (0-20 points)
+- Ideal age range match: 20 points
+- Acceptable range: 15 points
+- Outside optimal range: 10 points
+
+### 5. Urgency Multiplier
+- Critical cases: 1.5x total score
+- High priority: 1.3x total score
+- Medium priority: 1.0x total score
+
+## Example Calculation
+**Scenario**: Heart donor for critical patient
+- Organ Match: 100
+- Blood Perfect Match: 50
+- Same City: 30
+- Ideal Age: 20
+- **Base Score**: 200
+- **With Critical Multiplier** (1.5x): **300 points**
+
+## Minimum Threshold
+- Matches must score at least 100 points to appear in results
+- Admins can adjust these weights in the algorithm settings
+
+## Transparency
+All matches are logged with detailed score breakdowns for audit purposes.
+            """,
+            "category": "Matching System",
+            "tags": ["algorithm", "matching", "technical"],
+            "is_published": True,
+            "author_id": admin_id,
+            "author_name": "Admin Team",
+            "views": 89,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "title": "Privacy and Data Protection",
+            "content": """
+# Privacy and Data Protection
+
+Your privacy and data security are our top priorities.
+
+## Data We Collect
+- Personal information (name, contact, DOB)
+- Medical information (blood group, medical history)
+- Organ donation preferences
+- Account activity logs
+
+## How We Use Your Data
+- Matching donors with recipients
+- Platform communication
+- Improving our services
+- Compliance with legal requirements
+
+## Data Protection Measures
+1. **Encryption**: All data is encrypted in transit and at rest
+2. **Access Control**: Strict role-based access
+3. **Audit Logs**: All data access is logged
+4. **Regular Security Audits**
+
+## Your Rights
+- View your data anytime
+- Update or correct information
+- Delete your account and data
+- Download your data
+- Opt-out of non-essential communications
+
+## Sharing Policy
+We **never** sell your data. Your information is only shared with:
+- Medical professionals for matching purposes
+- Legal authorities when required by law
+- Your designated emergency contacts (if configured)
+
+## Reporting Issues
+If you suspect a privacy breach or have concerns, immediately contact:
+- Email: privacy@organconnect.com
+- Support ticket: Mark as "Urgent"
+
+## Compliance
+We comply with all relevant data protection regulations including HIPAA and local privacy laws.
+            """,
+            "category": "Privacy & Security",
+            "tags": ["privacy", "security", "data-protection"],
+            "is_published": True,
+            "author_id": admin_id,
+            "author_name": "Admin Team",
+            "views": 134,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "title": "Troubleshooting Common Issues",
+            "content": """
+# Troubleshooting Common Issues
+
+Quick solutions to common platform issues.
+
+## Login Problems
+
+### Can't log in?
+1. Check your email and password are correct
+2. Try the 'Forgot Password' link
+3. Clear your browser cache
+4. Try a different browser
+5. Check if Caps Lock is on
+
+### Email not verified?
+- Check your spam folder
+- Click 'Resend Verification Email'
+- Wait a few minutes and try again
+
+## Profile Issues
+
+### Can't update profile?
+- Make sure all required fields are filled
+- Check date formats (YYYY-MM-DD)
+- Ensure email is valid
+- Try refreshing the page
+
+### Profile not showing to hospitals?
+- Check if your application status is 'Approved'
+- Verify all required information is complete
+- Ensure you've selected organs to donate
+- Check privacy settings
+
+## Matching Issues
+
+### Not seeing any matches?
+- Verify your blood group is entered correctly
+- Check organ selection
+- Ensure location information is accurate
+- Wait for hospitals to post requirements
+
+### Hospital can't find donors?
+- Try broader filter criteria
+- Check if filters are too restrictive
+- Verify blood group compatibility
+- Try different location radius
+
+## Technical Issues
+
+### Page not loading?
+- Check your internet connection
+- Clear browser cache and cookies
+- Try incognito/private mode
+- Update your browser
+- Disable browser extensions
+
+### Getting errors?
+- Take a screenshot of the error
+- Note what you were doing
+- Clear browser cache
+- Try again in a few minutes
+- Create a support ticket with details
+
+## Still Need Help?
+If these solutions don't work:
+1. Create a support ticket with:
+   - Detailed description of the issue
+   - Screenshots if possible
+   - Your browser and device info
+   - Steps you've already tried
+2. Our team will respond within 24 hours
+
+## Emergency?
+For urgent medical emergencies, contact your local hospital directly. This platform is for organ matching coordination, not emergency medical services.
+            """,
+            "category": "Troubleshooting",
+            "tags": ["troubleshooting", "help", "issues", "fixes"],
+            "is_published": True,
+            "author_id": admin_id,
+            "author_name": "Admin Team",
+            "views": 312,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }
+    ]
+    
+    # Insert help documents
+    for doc in sample_help_docs:
+        doc_id = doc['id']
+        db.help_documents._data[doc_id] = doc.copy()
+
     print("Mock database seeded with test users:")
     print("   - donor@organconnect.com / donor123 (with donation application)")
     print("   - hospital@organconnect.com / hospital123 (with requirements)")
@@ -1289,3 +1742,5 @@ def seed_mock_data(db: MockDatabase):
     print(f"   - Created {len(sample_match_logs)} match logs (Phase 3A)")
     print(f"   - Created 1 algorithm configuration")
     print(f"   - Created {len(sample_contacts)} contact history entries")
+    print(f"   - Created {len(sample_faqs)} FAQs (Phase 3B)")
+    print(f"   - Created {len(sample_help_docs)} help documents (Phase 3B)")

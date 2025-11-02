@@ -2305,6 +2305,19 @@ async def create_support_ticket(
     ticket_obj = SupportTicket(**ticket_dict)
     await db.support_tickets.insert_one(ticket_obj.model_dump())
     
+    # Notify all admins about new support ticket
+    admin_users = await db.users.find({"role": "admin"}).to_list(1000)
+    for admin in admin_users:
+        notification = Notification(
+            user_id=admin["id"],
+            type="general",
+            title=f"🎫 New Support Ticket: {ticket_data.subject}",
+            message=f"{current_user['name']} ({current_user['role']}) created a {ticket_data.category} ticket with {ticket_data.priority} priority.",
+            link="/admin-dashboard",
+            metadata={"ticket_id": ticket_obj.id, "category": ticket_data.category, "priority": ticket_data.priority}
+        )
+        await db.notifications.insert_one(notification.model_dump())
+    
     # Log activity
     await log_activity(
         db=db,
