@@ -20,7 +20,8 @@ from models import (
     Notification, NotificationCreate,
     CommunityPost, CommunityPostCreate, CommunityPostUpdate,
     Event, EventCreate, EventUpdate,
-    Resource, ResourceCreate, ResourceUpdate
+    Resource, ResourceCreate, ResourceUpdate,
+    MatchLog, AlgorithmConfig, AlgorithmConfigUpdate
 )
 from auth_utils import get_current_user
 from fastapi import Depends, HTTPException
@@ -40,6 +41,14 @@ from notification_service import (
     get_user_notifications,
     get_unread_count,
     delete_notification
+)
+from match_logging_service import (
+    log_match,
+    get_match_logs,
+    update_match_status,
+    get_match_analytics,
+    get_algorithm_config,
+    update_algorithm_config
 )
 
 
@@ -247,8 +256,19 @@ async def create_hospital_requirement(
             requirement_details=req_obj.model_dump()
         )
         
-        # Notify top matching donors about new requirement
+        # Log matches and notify top matching donors
         for donor, score, breakdown in matches[:5]:  # Notify top 5 matches
+            # Auto-log this match
+            await log_match(
+                db=db,
+                match_type="donor_to_requirement",
+                donor=donor,
+                requirement=req_obj.model_dump(),
+                match_score=score,
+                score_breakdown=breakdown,
+                status="auto_matched"
+            )
+            
             await create_new_requirement_notification(
                 db=db,
                 donor_id=donor["donor_id"],
@@ -1783,6 +1803,121 @@ async def delete_resource_admin(
         raise HTTPException(status_code=404, detail="Resource not found")
     
     return {"message": "Resource deleted successfully"}
+
+# ============================================
+# PHASE 3A - MATCHING INSIGHTS ROUTES
+# ============================================
+
+@api_router.get("/admin/match-logs")
+async def get_match_logs_endpoint(
+    current_user: dict = Depends(get_current_user),
+    status: Optional[str] = None,
+    hospital_id: Optional[str] = None,
+    page: int = 1,
+    limit: int = 50
+):
+    """Get all match logs with filtering (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Build filters
+    filters = {}
+    if status:
+        filters["status"] = status
+    if hospital_id:
+        filters["hospital_id"] = hospital_id
+    
+    result = await get_match_logs(db, filters, page, limit)
+    
+    from models import MatchLog
+    result["logs"] = [MatchLog(**log) for log in result["logs"]]
+    
+    return result
+
+@api_router.put("/admin/match-logs/{match_log_id}/approve")
+async def approve_match(
+    match_log_id: str,
+    current_user: dict = Depends(get_current_user),
+    admin_notes: Optional[str] = None
+):
+    """Manually approve a match (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    success = await update_match_status(
+        db=db,
+        match_log_id=match_log_id,
+        new_status="manually_approved",
+        admin_id=current_user["id"],
+        admin_notes=admin_notes
+    )
+    
+    if not success:
+        raise HTTPException(status_code=404, detail="Match log not found")
+    
+    return {"message": "Match approved successfully"}
+
+@api_router.put("/admin/match-logs/{match_log_id}/reject")
+async def reject_match(
+    match_log_id: str,
+    current_user: dict = Depends(get_current_user),
+    admin_notes: Optional[str] = None
+):
+    """Manually reject a match (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    success = await update_match_status(
+        db=db,
+        match_log_id=match_log_id,
+        new_status="manually_rejected",
+        admin_id=current_user["id"],
+        admin_notes=admin_notes
+    )
+    
+    if not success:
+        raise HTTPException(status_code=404, detail="Match log not found")
+    
+    return {"message": "Match rejected successfully"}
+
+@api_router.get("/admin/match-analytics")
+async def get_match_analytics_endpoint(
+    current_user: dict = Depends(get_current_user)
+):
+    """Get match performance analytics (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    analytics = await get_match_analytics(db)
+    return analytics
+
+@api_router.get("/admin/algorithm-config")
+async def get_algorithm_config_endpoint(
+    current_user: dict = Depends(get_current_user)
+):
+    """Get current algorithm configuration (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    config = await get_algorithm_config(db)
+    return config
+
+@api_router.put("/admin/algorithm-config")
+async def update_algorithm_config_endpoint(
+    updates: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update algorithm configuration (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    config = await update_algorithm_config(db, updates, current_user["id"])
+    
+    if not config:
+        raise HTTPException(status_code=500, detail="Failed to update algorithm configuration")
+    
+    return {"message": "Algorithm configuration updated successfully", "config": config}
+
 
 # ============================================
 # ENHANCED ADMIN ENDPOINTS

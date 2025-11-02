@@ -62,6 +62,7 @@ import { RequirementsManagementTab } from "@/components/admin/RequirementsManage
 import { BroadcastNotifications } from "@/components/admin/BroadcastNotifications";
 import { PlatformSettings } from "@/components/admin/PlatformSettings";
 import { AuditLogsTab } from "@/components/admin/AuditLogsTab";
+import { MatchingInsightsTab } from "@/components/admin/MatchingInsightsTab";
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -575,7 +576,7 @@ const AdminDashboardEnhanced = () => {
 
           {/* Management Tabs */}
           <Tabs defaultValue="posts" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-11 gap-1">
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-12 gap-1">
               <TabsTrigger value="posts" data-testid="tab-posts">
                 <MessageSquare className="h-4 w-4 mr-2" />
                 Posts
@@ -599,6 +600,10 @@ const AdminDashboardEnhanced = () => {
               <TabsTrigger value="requirements" data-testid="tab-requirements">
                 <Building2 className="h-4 w-4 mr-2" />
                 Requirements
+              </TabsTrigger>
+              <TabsTrigger value="matching" data-testid="tab-matching">
+                <TrendingUp className="h-4 w-4 mr-2" />
+                Matching
               </TabsTrigger>
               <TabsTrigger value="analytics" data-testid="tab-analytics">
                 <BarChart3 className="h-4 w-4 mr-2" />
@@ -945,6 +950,12 @@ const AdminDashboardEnhanced = () => {
             {/* Platform Settings Tab */}
             <TabsContent value="settings">
               <PlatformSettings token={token} />
+            </TabsContent>
+
+
+            {/* Matching Insights Tab */}
+            <TabsContent value="matching">
+              <MatchingInsightsTab />
             </TabsContent>
 
             {/* Audit Logs Tab */}

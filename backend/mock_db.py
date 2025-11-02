@@ -1095,6 +1095,186 @@ def seed_mock_data(db: MockDatabase):
         resource_id = resource['id']
         db.resources._data[resource_id] = resource.copy()
     
+
+    # Create sample match logs for Phase 3A
+    # First, let's capture requirement IDs for reference
+    req_ids = [req['id'] for req in sample_requirements]
+    
+    sample_match_logs = [
+        {
+            "id": str(uuid.uuid4()),
+            "match_type": "donor_to_requirement",
+            "donor_id": donor_id_1,
+            "donor_name": "John Donor",
+            "requirement_id": req_ids[0] if len(req_ids) > 0 else str(uuid.uuid4()),
+            "requirement_details": "Heart for Robert Anderson",
+            "hospital_id": hospital_id,
+            "hospital_name": "City General Hospital",
+            "match_score": 220,
+            "score_breakdown": {
+                "organ_match": 100,
+                "blood_compatibility": 50,
+                "location_proximity": 30,
+                "age_suitability": 20,
+                "base_score": 200,
+                "urgency_multiplier": 1.5,
+                "total_score": 220
+            },
+            "status": "auto_matched",
+            "admin_notes": None,
+            "approved_by": None,
+            "approved_at": None,
+            "created_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "match_type": "donor_to_requirement",
+            "donor_id": donor_id_2,
+            "donor_name": "Sarah Wilson",
+            "requirement_id": req_ids[0] if len(req_ids) > 0 else str(uuid.uuid4()),
+            "requirement_details": "Heart for Robert Anderson",
+            "hospital_id": hospital_id,
+            "hospital_name": "City General Hospital",
+            "match_score": 195,
+            "score_breakdown": {
+                "organ_match": 100,
+                "blood_compatibility": 40,
+                "location_proximity": 30,
+                "age_suitability": 20,
+                "base_score": 190,
+                "urgency_multiplier": 1.5,
+                "total_score": 195
+            },
+            "status": "manually_approved",
+            "admin_notes": "Excellent match, recommended for transplant",
+            "approved_by": "admin_123",
+            "approved_at": datetime.utcnow(),
+            "created_at": datetime.utcnow() - timedelta(days=1)
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "match_type": "donor_to_requirement",
+            "donor_id": donor_id_3,
+            "donor_name": "Michael Chen",
+            "requirement_id": req_ids[1] if len(req_ids) > 1 else str(uuid.uuid4()),
+            "requirement_details": "Kidney for Lisa Martinez",
+            "hospital_id": hospital_id,
+            "hospital_name": "City General Hospital",
+            "match_score": 175,
+            "score_breakdown": {
+                "organ_match": 100,
+                "blood_compatibility": 50,
+                "location_proximity": 20,
+                "age_suitability": 20,
+                "base_score": 190,
+                "urgency_multiplier": 1.3,
+                "total_score": 175
+            },
+            "status": "auto_matched",
+            "admin_notes": None,
+            "approved_by": None,
+            "approved_at": None,
+            "created_at": datetime.utcnow() - timedelta(hours=5)
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "match_type": "donor_to_requirement",
+            "donor_id": donor_id_4,
+            "donor_name": "Emma Johnson",
+            "requirement_id": req_ids[0] if len(req_ids) > 0 else str(uuid.uuid4()),
+            "requirement_details": "Heart for Robert Anderson",
+            "hospital_id": hospital_id,
+            "hospital_name": "City General Hospital",
+            "match_score": 160,
+            "score_breakdown": {
+                "organ_match": 100,
+                "blood_compatibility": 40,
+                "location_proximity": 30,
+                "age_suitability": 15,
+                "base_score": 185,
+                "urgency_multiplier": 1.0,
+                "total_score": 160
+            },
+            "status": "manually_rejected",
+            "admin_notes": "Patient found better match in another region",
+            "approved_by": "admin_123",
+            "approved_at": datetime.utcnow() - timedelta(days=2),
+            "created_at": datetime.utcnow() - timedelta(days=3)
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "match_type": "donor_to_requirement",
+            "donor_id": donor_id_5,
+            "donor_name": "David Brown",
+            "requirement_id": req_ids[1] if len(req_ids) > 1 else str(uuid.uuid4()),
+            "requirement_details": "Kidney for Lisa Martinez",
+            "hospital_id": hospital_id_2,
+            "hospital_name": "Metro Care Hospital",
+            "match_score": 210,
+            "score_breakdown": {
+                "organ_match": 100,
+                "blood_compatibility": 50,
+                "location_proximity": 30,
+                "age_suitability": 20,
+                "base_score": 200,
+                "urgency_multiplier": 1.5,
+                "total_score": 210
+            },
+            "status": "auto_matched",
+            "admin_notes": None,
+            "approved_by": None,
+            "approved_at": None,
+            "created_at": datetime.utcnow() - timedelta(hours=12)
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "match_type": "donor_to_requirement",
+            "donor_id": donor_id_6,
+            "donor_name": "Jessica Taylor",
+            "requirement_id": req_ids[0] if len(req_ids) > 0 else str(uuid.uuid4()),
+            "requirement_details": "Heart for Robert Anderson",
+            "hospital_id": hospital_id_2,
+            "hospital_name": "Metro Care Hospital",
+            "match_score": 155,
+            "score_breakdown": {
+                "organ_match": 100,
+                "blood_compatibility": 40,
+                "location_proximity": 20,
+                "age_suitability": 20,
+                "base_score": 180,
+                "urgency_multiplier": 1.0,
+                "total_score": 155
+            },
+            "status": "pending",
+            "admin_notes": None,
+            "approved_by": None,
+            "approved_at": None,
+            "created_at": datetime.utcnow() - timedelta(hours=2)
+        }
+    ]
+    
+    # Insert match logs
+    for match_log in sample_match_logs:
+        match_log_id = match_log['id']
+        db.match_logs._data[match_log_id] = match_log.copy()
+    
+    # Create default algorithm configuration
+    default_algorithm_config = {
+        "id": str(uuid.uuid4()),
+        "organ_match_weight": 100,
+        "blood_compatibility_weight": 50,
+        "location_proximity_weight": 30,
+        "age_suitability_weight": 20,
+        "critical_urgency_multiplier": 1.5,
+        "high_urgency_multiplier": 1.3,
+        "medium_urgency_multiplier": 1.0,
+        "min_match_score_threshold": 100,
+        "updated_by": None,
+        "updated_at": datetime.utcnow()
+    }
+    
+    db.algorithm_config._data[default_algorithm_config['id']] = default_algorithm_config.copy()
+
     print("Mock database seeded with test users:")
     print("   - donor@organconnect.com / donor123 (with donation application)")
     print("   - hospital@organconnect.com / hospital123 (with requirements)")
@@ -1106,4 +1286,6 @@ def seed_mock_data(db: MockDatabase):
     print(f"   - Created {len(sample_posts)} community posts")
     print(f"   - Created {len(sample_events)} events")
     print(f"   - Created {len(sample_resources)} resources")
+    print(f"   - Created {len(sample_match_logs)} match logs (Phase 3A)")
+    print(f"   - Created 1 algorithm configuration")
     print(f"   - Created {len(sample_contacts)} contact history entries")
