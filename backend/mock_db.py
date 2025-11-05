@@ -1728,6 +1728,130 @@ For urgent medical emergencies, contact your local hospital directly. This platf
         doc_id = doc['id']
         db.help_documents._data[doc_id] = doc.copy()
 
+    # ============================================
+    # BRANCH HOSPITALS SEED DATA
+    # ============================================
+    
+    # Get admin ID for reference
+    admin_user = next((u for u in test_users if u['role'] == 'admin'), None)
+    admin_id_ref = admin_user['id'] if admin_user else str(uuid.uuid4())
+    
+    # Create branch hospital users
+    branch_hospital_id_1 = str(uuid.uuid4())
+    branch_hospital_id_2 = str(uuid.uuid4())
+    branch_hospital_id_3 = str(uuid.uuid4())
+    
+    branch_hospital_users = [
+        {
+            "id": branch_hospital_id_1,
+            "email": "branch.downtown@organconnect.com",
+            "hashed_password": pwd_context.hash("branch123"),
+            "role": "branch_hospital",
+            "name": "Downtown Medical Branch",
+            "mobile": "+1234567850",
+            "age": None,
+            "mobile_verified": True,
+            "is_active": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": branch_hospital_id_2,
+            "email": "branch.northside@organconnect.com",
+            "hashed_password": pwd_context.hash("branch123"),
+            "role": "branch_hospital",
+            "name": "Northside Health Center Branch",
+            "mobile": "+1234567851",
+            "age": None,
+            "mobile_verified": True,
+            "is_active": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": branch_hospital_id_3,
+            "email": "branch.eastvalley@organconnect.com",
+            "hashed_password": pwd_context.hash("branch123"),
+            "role": "branch_hospital",
+            "name": "East Valley Clinic Branch",
+            "mobile": "+1234567852",
+            "age": None,
+            "mobile_verified": True,
+            "is_active": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }
+    ]
+    
+    # Insert branch hospital users
+    for branch_user in branch_hospital_users:
+        user_id = branch_user['id']
+        db.users._data[user_id] = branch_user.copy()
+    
+    # Create branch hospital records
+    sample_branch_hospitals = [
+        {
+            "id": str(uuid.uuid4()),
+            "name": "Downtown Medical Branch",
+            "email": "branch.downtown@organconnect.com",
+            "license_number": "BH-2024-001",
+            "address": "123 Medical Plaza, Suite 500",
+            "city": "New York",
+            "state": "New York",
+            "country": "USA",
+            "contact_number": "+1234567850",
+            "contact_person": "Dr. Sarah Mitchell",
+            "auto_generated_password": "branch123",
+            "created_by_admin_id": admin_id_ref,
+            "created_by_admin_name": "Admin User",
+            "is_active": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "name": "Northside Health Center Branch",
+            "email": "branch.northside@organconnect.com",
+            "license_number": "BH-2024-002",
+            "address": "456 Healthcare Drive, Building B",
+            "city": "Los Angeles",
+            "state": "California",
+            "country": "USA",
+            "contact_number": "+1234567851",
+            "contact_person": "Dr. Michael Rodriguez",
+            "auto_generated_password": "branch123",
+            "created_by_admin_id": admin_id_ref,
+            "created_by_admin_name": "Admin User",
+            "is_active": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "name": "East Valley Clinic Branch",
+            "email": "branch.eastvalley@organconnect.com",
+            "license_number": "BH-2024-003",
+            "address": "789 Valley Road, Medical Center",
+            "city": "Chicago",
+            "state": "Illinois",
+            "country": "USA",
+            "contact_number": "+1234567852",
+            "contact_person": "Dr. Jennifer Lee",
+            "auto_generated_password": "branch123",
+            "created_by_admin_id": admin_id_ref,
+            "created_by_admin_name": "Admin User",
+            "is_active": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }
+    ]
+    
+    # Insert branch hospitals
+    for branch_hospital in sample_branch_hospitals:
+        branch_id = branch_hospital['id']
+        db.branch_hospitals._data[branch_id] = branch_hospital.copy()
+
+
     print("Mock database seeded with test users:")
     print("   - donor@organconnect.com / donor123 (with donation application)")
     print("   - hospital@organconnect.com / hospital123 (with requirements)")
@@ -1744,3 +1868,8 @@ For urgent medical emergencies, contact your local hospital directly. This platf
     print(f"   - Created {len(sample_contacts)} contact history entries")
     print(f"   - Created {len(sample_faqs)} FAQs (Phase 3B)")
     print(f"   - Created {len(sample_help_docs)} help documents (Phase 3B)")
+    print(f"   - Created {len(sample_branch_hospitals)} branch hospitals")
+    print("   - Branch Hospital Accounts:")
+    print("     * branch.downtown@organconnect.com / branch123")
+    print("     * branch.northside@organconnect.com / branch123")
+    print("     * branch.eastvalley@organconnect.com / branch123")

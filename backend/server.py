@@ -21,7 +21,9 @@ from models import (
     CommunityPost, CommunityPostCreate, CommunityPostUpdate,
     Event, EventCreate, EventUpdate,
     Resource, ResourceCreate, ResourceUpdate,
-    MatchLog, AlgorithmConfig, AlgorithmConfigUpdate
+    MatchLog, AlgorithmConfig, AlgorithmConfigUpdate,
+    BranchHospital, BranchHospitalCreate, BranchHospitalUpdate, BranchHospitalResponse,
+    User
 )
 from auth_utils import get_current_user
 from fastapi import Depends, HTTPException
@@ -1803,6 +1805,293 @@ async def delete_resource_admin(
         raise HTTPException(status_code=404, detail="Resource not found")
     
     return {"message": "Resource deleted successfully"}
+
+
+# ============================================
+# BRANCH HOSPITAL MANAGEMENT ROUTES (Admin Only)
+# ============================================
+
+@api_router.post("/admin/branch-hospitals", response_model=dict)
+async def create_branch_hospital(
+    branch_data: BranchHospitalCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new branch hospital (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Check if email already exists
+    existing_user = await db.users.find_one({"email": branch_data.email})
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Check if license number already exists
+    existing_branch = await db.branch_hospitals.find_one({"license_number": branch_data.license_number})
+    if existing_branch:
+        raise HTTPException(status_code=400, detail="License number already exists")
+    
+    # Generate random secure password
+    import secrets
+    import string
+    alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
+    auto_password = ''.join(secrets.choice(alphabet) for i in range(12))
+    
+    # Create user account for branch hospital
+    from auth_utils import get_password_hash
+    branch_user = User(
+        email=branch_data.email,
+        hashed_password=get_password_hash(auto_password),
+        role="branch_hospital",
+        name=branch_data.name,
+        mobile=branch_data.contact_number,
+        mobile_verified=True,
+        is_active=True
+    )
+    await db.users.insert_one(branch_user.model_dump())
+    
+    # Create branch hospital record
+    from models import BranchHospital
+    branch_hospital = BranchHospital(
+        name=branch_data.name,
+        email=branch_data.email,
+        license_number=branch_data.license_number,
+        address=branch_data.address,
+        city=branch_data.city,
+        state=branch_data.state,
+        country=branch_data.country,
+        contact_number=branch_data.contact_number,
+        contact_person=branch_data.contact_person,
+        auto_generated_password=auto_password,  # Store temporarily
+        created_by_admin_id=current_user["id"],
+        created_by_admin_name=current_user.get("name", "Admin")
+    )
+    
+    await db.branch_hospitals.insert_one(branch_hospital.model_dump())
+    
+    # Send credentials via email
+    from email_service import email_service
+    email_sent = await email_service.send_branch_hospital_credentials(
+        branch_hospital_name=branch_data.name,
+        to_email=branch_data.email,
+        login_email=branch_data.email,
+        password=auto_password,
+        license_number=branch_data.license_number
+    )
+    
+    logger.info(f"Branch hospital created: {branch_data.name} by admin {current_user.get('name')}")
+    
+    # Return branch hospital with credentials (only this once)
+    return {
+        "message": "Branch hospital created successfully",
+        "branch_hospital": {
+            "id": branch_hospital.id,
+            "name": branch_hospital.name,
+            "email": branch_hospital.email,
+            "license_number": branch_hospital.license_number,
+            "address": branch_hospital.address,
+            "city": branch_hospital.city,
+            "state": branch_hospital.state,
+            "country": branch_hospital.country,
+            "contact_number": branch_hospital.contact_number,
+            "contact_person": branch_hospital.contact_person,
+            "is_active": branch_hospital.is_active,
+            "created_at": branch_hospital.created_at
+        },
+        "credentials": {
+            "email": branch_data.email,
+            "password": auto_password
+        },
+        "email_sent": email_sent
+    }
+
+@api_router.get("/admin/branch-hospitals")
+async def get_all_branch_hospitals(
+    current_user: dict = Depends(get_current_user),
+    is_active: Optional[bool] = None,
+    page: int = 1,
+    limit: int = 50
+):
+    """Get all branch hospitals (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Build filter
+    filter_dict = {}
+    if is_active is not None:
+        filter_dict["is_active"] = is_active
+    
+    # Get all branch hospitals
+    all_branches = await db.branch_hospitals.find(filter_dict).sort("created_at", -1).to_list(10000)
+    
+    # Remove passwords from response
+    for branch in all_branches:
+        branch.pop("auto_generated_password", None)
+    
+    # Pagination
+    total = len(all_branches)
+    start_idx = (page - 1) * limit
+    end_idx = start_idx + limit
+    paginated_branches = all_branches[start_idx:end_idx]
+    
+    from models import BranchHospitalResponse
+    return {
+        "branch_hospitals": [BranchHospitalResponse(**branch) for branch in paginated_branches],
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "total_pages": (total + limit - 1) // limit
+    }
+
+@api_router.get("/admin/branch-hospitals/{branch_id}")
+async def get_branch_hospital(
+    branch_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get specific branch hospital details (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    branch = await db.branch_hospitals.find_one({"id": branch_id})
+    if not branch:
+        raise HTTPException(status_code=404, detail="Branch hospital not found")
+    
+    # Remove password from response
+    branch.pop("auto_generated_password", None)
+    
+    from models import BranchHospitalResponse
+    return BranchHospitalResponse(**branch)
+
+@api_router.put("/admin/branch-hospitals/{branch_id}")
+async def update_branch_hospital(
+    branch_id: str,
+    updates: BranchHospitalUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update branch hospital details (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    branch = await db.branch_hospitals.find_one({"id": branch_id})
+    if not branch:
+        raise HTTPException(status_code=404, detail="Branch hospital not found")
+    
+    # Update only provided fields
+    update_dict = {k: v for k, v in updates.model_dump().items() if v is not None}
+    update_dict["updated_at"] = datetime.utcnow()
+    
+    result = await db.branch_hospitals.update_one(
+        {"id": branch_id},
+        {"$set": update_dict}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Failed to update branch hospital")
+    
+    # If name or contact is updated, also update the user account
+    if "name" in update_dict or "contact_number" in update_dict:
+        user_updates = {}
+        if "name" in update_dict:
+            user_updates["name"] = update_dict["name"]
+        if "contact_number" in update_dict:
+            user_updates["mobile"] = update_dict["contact_number"]
+        
+        if user_updates:
+            await db.users.update_one(
+                {"email": branch["email"]},
+                {"$set": user_updates}
+            )
+    
+    # Fetch updated branch hospital
+    updated_branch = await db.branch_hospitals.find_one({"id": branch_id})
+    updated_branch.pop("auto_generated_password", None)
+    
+    from models import BranchHospitalResponse
+    return {
+        "message": "Branch hospital updated successfully",
+        "branch_hospital": BranchHospitalResponse(**updated_branch)
+    }
+
+@api_router.delete("/admin/branch-hospitals/{branch_id}")
+async def delete_branch_hospital(
+    branch_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete branch hospital (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    branch = await db.branch_hospitals.find_one({"id": branch_id})
+    if not branch:
+        raise HTTPException(status_code=404, detail="Branch hospital not found")
+    
+    # Delete branch hospital record
+    result = await db.branch_hospitals.delete_one({"id": branch_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Failed to delete branch hospital")
+    
+    # Also delete the associated user account
+    await db.users.delete_one({"email": branch["email"]})
+    
+    logger.info(f"Branch hospital deleted: {branch['name']} by admin {current_user.get('name')}")
+    
+    return {"message": "Branch hospital deleted successfully"}
+
+@api_router.post("/admin/branch-hospitals/{branch_id}/reset-password")
+async def reset_branch_hospital_password(
+    branch_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Reset branch hospital password and send new credentials (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    branch = await db.branch_hospitals.find_one({"id": branch_id})
+    if not branch:
+        raise HTTPException(status_code=404, detail="Branch hospital not found")
+    
+    # Generate new password
+    import secrets
+    import string
+    alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
+    new_password = ''.join(secrets.choice(alphabet) for i in range(12))
+    
+    # Update user password
+    from auth_utils import get_password_hash
+    await db.users.update_one(
+        {"email": branch["email"]},
+        {"$set": {"hashed_password": get_password_hash(new_password)}}
+    )
+    
+    # Update branch hospital record
+    await db.branch_hospitals.update_one(
+        {"id": branch_id},
+        {"$set": {
+            "auto_generated_password": new_password,
+            "updated_at": datetime.utcnow()
+        }}
+    )
+    
+    # Send new credentials via email
+    from email_service import email_service
+    email_sent = await email_service.send_branch_hospital_credentials(
+        branch_hospital_name=branch["name"],
+        to_email=branch["email"],
+        login_email=branch["email"],
+        password=new_password,
+        license_number=branch["license_number"]
+    )
+    
+    logger.info(f"Password reset for branch hospital: {branch['name']} by admin {current_user.get('name')}")
+    
+    return {
+        "message": "Password reset successfully",
+        "credentials": {
+            "email": branch["email"],
+            "password": new_password
+        },
+        "email_sent": email_sent
+    }
 
 # ============================================
 # PHASE 3A - MATCHING INSIGHTS ROUTES

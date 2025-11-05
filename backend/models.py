@@ -7,7 +7,7 @@ class User(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     email: EmailStr
     hashed_password: str
-    role: Literal["donor", "hospital", "admin"]
+    role: Literal["donor", "hospital", "admin", "branch_hospital"]
     name: str
     mobile: Optional[str] = None
     age: Optional[int] = None
@@ -436,3 +436,64 @@ class HelpDocumentUpdate(BaseModel):
     category: Optional[str] = None
     tags: Optional[List[str]] = None
     is_published: Optional[bool] = None
+
+# ============================================
+# BRANCH HOSPITAL MODELS
+# ============================================
+
+class BranchHospital(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    email: EmailStr
+    license_number: str
+    address: str
+    city: str
+    state: str
+    country: str
+    contact_number: str
+    contact_person: Optional[str] = None
+    auto_generated_password: str  # Store temporarily for display to admin
+    created_by_admin_id: str
+    created_by_admin_name: str
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class BranchHospitalCreate(BaseModel):
+    name: str
+    email: EmailStr
+    license_number: str
+    address: str
+    city: str
+    state: str
+    country: str
+    contact_number: str
+    contact_person: Optional[str] = None
+
+class BranchHospitalUpdate(BaseModel):
+    name: Optional[str] = None
+    license_number: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    country: Optional[str] = None
+    contact_number: Optional[str] = None
+    contact_person: Optional[str] = None
+    is_active: Optional[bool] = None
+
+class BranchHospitalResponse(BaseModel):
+    id: str
+    name: str
+    email: str
+    license_number: str
+    address: str
+    city: str
+    state: str
+    country: str
+    contact_number: str
+    contact_person: Optional[str]
+    created_by_admin_name: str
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+    # Note: auto_generated_password is not included for security
