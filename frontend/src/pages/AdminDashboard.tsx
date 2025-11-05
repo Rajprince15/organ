@@ -242,7 +242,7 @@ export default function AdminDashboard() {
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100">
       <Navigation />
       
-      <main className="flex-1 container mx-auto px-4 pt-24 pb-8 lg:pt-32">
+      <main className="flex-1 container mx-auto px-4 pt-24 pb-8 lg:pt-32 md:pt-28">
         <div className="max-w-7xl mx-auto space-y-8">
           {/* Header */}
           <div>

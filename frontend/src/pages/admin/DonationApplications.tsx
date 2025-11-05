@@ -207,7 +207,7 @@ export default function DonationApplications() {
     <div className="min-h-screen flex flex-col bg-gray-50">
       <Navigation />
       
-      <main className="flex-1 container mx-auto px-4 pt-24 pb-8 lg:pt-32">
+      <main className="flex-1 container mx-auto px-4 pt-24 pb-8 lg:pt-32 md:pt-28">
         <div className="max-w-7xl mx-auto space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between">
