@@ -64,7 +64,7 @@ class DonationApplication(BaseModel):
     city: Optional[str] = None
     state: Optional[str] = None
     country: Optional[str] = None
-    status: Literal["pending", "approved", "active", "cancelled"] = "pending"
+    status: Literal["pending", "approved",  "inactive" ,"active", "cancelled"] = "pending"
     # Branch Hospital Assignment Fields
     assigned_branch_hospital_id: Optional[str] = None
     assigned_branch_hospital_name: Optional[str] = None
@@ -97,7 +97,7 @@ class DonationApplicationUpdate(BaseModel):
     city: Optional[str] = None
     state: Optional[str] = None
     country: Optional[str] = None
-    status: Optional[Literal["pending", "approved", "active", "cancelled"]] = None
+    status: Optional[Literal["pending", "approved", "active", "inactive", "cancelled"]] = None
 
 class HospitalRequirement(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
