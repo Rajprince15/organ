@@ -1066,7 +1066,14 @@ async def get_admin_stats(
     total_donations = len(all_donations)
     pending_donations = len([d for d in all_donations if d.get("status") == "pending"])
     approved_donations = len([d for d in all_donations if d.get("status") == "approved"])
+    active_donations = len([d for d in all_donations if d.get("status") == "active"])
+    inactive_donations = len([d for d in all_donations if d.get("status") == "inactive"])
     cancelled_donations = len([d for d in all_donations if d.get("status") == "cancelled"])
+    
+    # Count by checkup status
+    pending_checkup = len([d for d in all_donations if d.get("checkup_status") == "pending_checkup"])
+    eligible_donors = len([d for d in all_donations if d.get("checkup_status") == "eligible"])
+    not_eligible_donors = len([d for d in all_donations if d.get("checkup_status") == "not_eligible"])
     
     # Count hospital requirements by status
     all_requirements = await db.hospital_requirements.find({}).to_list(10000)
@@ -1109,7 +1116,12 @@ async def get_admin_stats(
             "total": total_donations,
             "pending": pending_donations,
             "approved": approved_donations,
-            "cancelled": cancelled_donations
+            "active": active_donations,
+            "inactive": inactive_donations,
+            "cancelled": cancelled_donations,
+            "pending_checkup": pending_checkup,
+            "eligible_donors": eligible_donors,
+            "not_eligible_donors": not_eligible_donors
         },
         "requirements": {
             "total": total_requirements,
@@ -1315,6 +1327,183 @@ async def delete_donation_admin(
         raise HTTPException(status_code=404, detail="Donation application not found")
     
     return {"message": "Donation application deleted successfully"}
+
+@api_router.get("/admin/donation-applications")
+async def get_donation_applications_for_admin(
+    current_user: dict = Depends(get_current_user),
+    page: int = 1,
+    limit: int = 50
+):
+    """Get donation applications that need admin review (pending or not eligible)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Get donations that are pending OR marked as not eligible
+    all_applications = await db.donation_applications.find({
+        "$or": [
+            {"status": "pending"},
+            {"checkup_status": "not_eligible"}
+        ]
+    }).sort("created_at", -1).to_list(10000)
+    
+    # Pagination
+    total = len(all_applications)
+    start_idx = (page - 1) * limit
+    end_idx = start_idx + limit
+    paginated_applications = all_applications[start_idx:end_idx]
+    
+    return {
+        "applications": [DonationApplication(**app) for app in paginated_applications],
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "total_pages": (total + limit - 1) // limit
+    }
+
+@api_router.get("/admin/donors/{donor_id}")
+async def get_donor_details_admin(
+    donor_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get detailed donor information (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Get donor application
+    donor = await db.donation_applications.find_one({"donor_id": donor_id})
+    if not donor:
+        raise HTTPException(status_code=404, detail="Donor not found")
+    
+    # Get donor user info
+    user = await db.users.find_one({"id": donor_id})
+    
+    # Get branch hospital info if assigned
+    branch_hospital = None
+    if donor.get("assigned_branch_hospital_id"):
+        branch_hospital = await db.branch_hospitals.find_one({"id": donor["assigned_branch_hospital_id"]})
+        if branch_hospital:
+            branch_hospital.pop("auto_generated_password", None)
+    
+    return {
+        "donor": DonationApplication(**donor),
+        "user": user,
+        "branch_hospital": branch_hospital
+    }
+
+@api_router.put("/admin/donors/{donor_id}")
+async def update_donor_admin(
+    donor_id: str,
+    updates: DonationApplicationUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update donor information (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    donor = await db.donation_applications.find_one({"donor_id": donor_id})
+    if not donor:
+        raise HTTPException(status_code=404, detail="Donor not found")
+    
+    old_status = donor.get("status")
+    
+    # Update only provided fields
+    update_dict = {k: v for k, v in updates.model_dump().items() if v is not None}
+    update_dict["updated_at"] = datetime.utcnow()
+    
+    result = await db.donation_applications.update_one(
+        {"donor_id": donor_id},
+        {"$set": update_dict}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Failed to update donor")
+    
+    # Fetch updated donor
+    updated_donor = await db.donation_applications.find_one({"donor_id": donor_id})
+    
+    # Send notification if status changed
+    new_status = update_dict.get("status")
+    if new_status and new_status != old_status:
+        await create_status_change_notification(
+            db=db,
+            user_id=donor_id,
+            status_type="Donor Application",
+            old_status=old_status,
+            new_status=new_status,
+            item_name="donor application"
+        )
+    
+    return {"message": "Donor updated successfully", "donor": DonationApplication(**updated_donor)}
+
+@api_router.put("/admin/donors/{donor_id}/status")
+async def update_donor_status_admin(
+    donor_id: str,
+    status_data: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update donor status manually (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    new_status = status_data.get("status")
+    if new_status not in ["pending", "approved", "active", "inactive", "cancelled"]:
+        raise HTTPException(status_code=400, detail="Invalid status")
+    
+    donor = await db.donation_applications.find_one({"donor_id": donor_id})
+    if not donor:
+        raise HTTPException(status_code=404, detail="Donor not found")
+    
+    old_status = donor.get("status")
+    
+    result = await db.donation_applications.update_one(
+        {"donor_id": donor_id},
+        {"$set": {
+            "status": new_status,
+            "updated_at": datetime.utcnow()
+        }}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Failed to update status")
+    
+    # Notify donor
+    await create_status_change_notification(
+        db=db,
+        user_id=donor_id,
+        status_type="Donor Status",
+        old_status=old_status,
+        new_status=new_status,
+        item_name="donor status"
+    )
+    
+    return {"message": f"Donor status updated to {new_status}", "status": new_status}
+
+@api_router.delete("/admin/donors/{donor_id}")
+async def remove_donor_admin(
+    donor_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Remove/deactivate donor (admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    donor = await db.donation_applications.find_one({"donor_id": donor_id})
+    if not donor:
+        raise HTTPException(status_code=404, detail="Donor not found")
+    
+    # Instead of hard delete, mark as inactive/cancelled
+    result = await db.donation_applications.update_one(
+        {"donor_id": donor_id},
+        {"$set": {
+            "status": "inactive",
+            "updated_at": datetime.utcnow()
+        }}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Failed to remove donor")
+    
+    return {"message": "Donor removed from active database (marked as inactive)"}
 
 @api_router.get("/admin/requirements")
 async def get_all_requirements_admin(
@@ -2356,9 +2545,11 @@ async def mark_donor_eligibility(
         "updated_at": datetime.utcnow()
     }
     
-    # If eligible, also update status to approved
+    # Update status based on eligibility
     if eligibility_status == "eligible":
-        update_data["status"] = "approved"
+        update_data["status"] = "active"  # Active donors are eligible
+    else:
+        update_data["status"] = "inactive"  # Inactive donors are not eligible
     
     await db.donation_applications.update_one(
         {"donor_id": donor_id},
@@ -2394,17 +2585,25 @@ async def mark_donor_eligibility(
         link="/donor-dashboard"
     )
     
-    # Notify admin if not eligible
-    if eligibility_status == "not_eligible":
-        # Get all admins
-        admins = await db.users.find({"role": "admin"}).to_list(100)
-        for admin in admins:
+    # Notify admins about eligibility status change
+    admins = await db.users.find({"role": "admin"}).to_list(100)
+    for admin in admins:
+        if eligibility_status == "not_eligible":
             await create_notification(
                 db=db,
                 user_id=admin["id"],
                 notification_type="general",
                 title="Donor Marked Not Eligible",
                 message=f"Donor {donor['full_name']} has been marked as not eligible by {branch_hospital['name']}.",
+                link="/admin/donations"
+            )
+        else:
+            await create_notification(
+                db=db,
+                user_id=admin["id"],
+                notification_type="general",
+                title="Donor Marked Eligible",
+                message=f"Donor {donor['full_name']} has been marked as eligible by {branch_hospital['name']} and is now active.",
                 link="/admin/donations"
             )
     

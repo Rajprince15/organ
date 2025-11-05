@@ -37,6 +37,12 @@ interface Stats {
     total: number;
     pending: number;
     approved: number;
+    active: number;
+    inactive: number;
+    cancelled: number;
+    pending_checkup: number;
+    eligible_donors: number;
+    not_eligible_donors: number;
   };
   requirements: {
     total: number;
@@ -203,30 +209,30 @@ export default function AdminDashboard() {
 
   const quickStats = [
     {
-      label: "Total Users",
-      value: stats?.users.total || 0,
+      label: "Total Donors",
+      value: stats?.donations.total || 0,
       icon: Users,
       color: "text-blue-600",
       bgColor: "bg-blue-50",
     },
     {
-      label: "Active Donations",
-      value: stats?.donations.approved || 0,
+      label: "Active Donors",
+      value: stats?.donations.active || 0,
       icon: Heart,
-      color: "text-red-600",
-      bgColor: "bg-red-50",
-    },
-    {
-      label: "Active Requirements",
-      value: stats?.requirements.active || 0,
-      icon: Building2,
       color: "text-green-600",
       bgColor: "bg-green-50",
     },
     {
+      label: "Pending Checkups",
+      value: stats?.donations.pending_checkup || 0,
+      icon: FileText,
+      color: "text-yellow-600",
+      bgColor: "bg-yellow-50",
+    },
+    {
       label: "Pending Applications",
       value: stats?.donations.pending || 0,
-      icon: FileText,
+      icon: Activity,
       color: "text-orange-600",
       bgColor: "bg-orange-50",
     },

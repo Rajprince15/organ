@@ -40,6 +40,9 @@ interface DonationApplication {
   blood_group: string;
   organs: string[];
   status: string;
+  checkup_status: string;
+  assigned_branch_hospital_name?: string;
+  eligibility_report_url?: string;
   created_at: string;
 }
 
@@ -70,12 +73,12 @@ export const DonationApplicationsTab = ({ token }: DonationApplicationsTabProps)
 
   const fetchApplications = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/admin/donations?limit=1000`, {
+      const response = await fetch(`${API_URL}/api/admin/donation-applications?limit=1000`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
         const data = await response.json();
-        setApplications(data.donations);
+        setApplications(data.applications);
       }
     } catch (error) {
       toast({ title: "Failed to fetch applications", variant: "destructive" });
@@ -169,6 +172,8 @@ export const DonationApplicationsTab = ({ token }: DonationApplicationsTabProps)
     const variants: Record<string, any> = {
       pending: { variant: "outline", icon: Clock, color: "text-yellow-600" },
       approved: { variant: "default", icon: CheckCircle, color: "text-green-600" },
+      active: { variant: "default", icon: CheckCircle, color: "text-green-600" },
+      inactive: { variant: "destructive", icon: XCircle, color: "text-red-600" },
       cancelled: { variant: "destructive", icon: XCircle, color: "text-red-600" }
     };
     const config = variants[status] || variants.pending;
@@ -177,6 +182,22 @@ export const DonationApplicationsTab = ({ token }: DonationApplicationsTabProps)
       <Badge variant={config.variant} className="flex items-center gap-1">
         <Icon className="h-3 w-3" />
         {status}
+      </Badge>
+    );
+  };
+
+  const getCheckupStatusBadge = (checkupStatus: string) => {
+    const variants: Record<string, any> = {
+      pending_checkup: { variant: "outline", color: "bg-yellow-500 text-white" },
+      completed: { variant: "outline", color: "bg-blue-500 text-white" },
+      eligible: { variant: "default", color: "bg-green-500 text-white" },
+      not_eligible: { variant: "destructive", color: "bg-red-500 text-white" },
+      none: { variant: "outline", color: "bg-gray-500 text-white" }
+    };
+    const config = variants[checkupStatus] || variants.none;
+    return (
+      <Badge className={config.color}>
+        {checkupStatus.replace(/_/g, ' ')}
       </Badge>
     );
   };
@@ -197,6 +218,8 @@ export const DonationApplicationsTab = ({ token }: DonationApplicationsTabProps)
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
             <SelectItem value="approved">Approved</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="inactive">Inactive</SelectItem>
             <SelectItem value="cancelled">Cancelled</SelectItem>
           </SelectContent>
         </Select>
@@ -237,8 +260,9 @@ export const DonationApplicationsTab = ({ token }: DonationApplicationsTabProps)
               <TableHead>Name</TableHead>
               <TableHead>Blood Group</TableHead>
               <TableHead>Organs</TableHead>
+              <TableHead>Branch Hospital</TableHead>
+              <TableHead>Checkup Status</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Applied Date</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -258,8 +282,11 @@ export const DonationApplicationsTab = ({ token }: DonationApplicationsTabProps)
                 <TableCell>
                   <div className="text-sm">{app.organs.slice(0, 2).join(", ")}{app.organs.length > 2 ? " +" + (app.organs.length - 2) : ""}</div>
                 </TableCell>
+                <TableCell>
+                  <div className="text-sm">{app.assigned_branch_hospital_name || 'Not Assigned'}</div>
+                </TableCell>
+                <TableCell>{getCheckupStatusBadge(app.checkup_status)}</TableCell>
                 <TableCell>{getStatusBadge(app.status)}</TableCell>
-                <TableCell>{new Date(app.created_at).toLocaleDateString()}</TableCell>
                 <TableCell>
                   <Button
                     size="sm"
@@ -304,6 +331,14 @@ export const DonationApplicationsTab = ({ token }: DonationApplicationsTabProps)
                   <p className="text-sm text-muted-foreground">Blood Group</p>
                   <p className="font-medium">{selectedApplication.blood_group}</p>
                 </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Current Status</p>
+                  <div>{getStatusBadge(selectedApplication.status)}</div>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Checkup Status</p>
+                  <div>{getCheckupStatusBadge(selectedApplication.checkup_status)}</div>
+                </div>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground mb-2">Organs to Donate</p>
@@ -313,6 +348,25 @@ export const DonationApplicationsTab = ({ token }: DonationApplicationsTabProps)
                   ))}
                 </div>
               </div>
+              {selectedApplication.assigned_branch_hospital_name && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Assigned Branch Hospital</p>
+                  <p className="font-medium">{selectedApplication.assigned_branch_hospital_name}</p>
+                </div>
+              )}
+              {selectedApplication.eligibility_report_url && (
+                <div>
+                  <p className="text-sm text-muted-foreground mb-2">Eligibility Report</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.open(`${API_URL}${selectedApplication.eligibility_report_url}`, '_blank')}
+                  >
+                    <Eye className="h-4 w-4 mr-2" />
+                    View Report
+                  </Button>
+                </div>
+              )}
             </div>
           )}
           <DialogFooter>
