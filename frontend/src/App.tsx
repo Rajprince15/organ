@@ -41,6 +41,7 @@ import BroadcastPage from "./pages/admin/BroadcastPage";
 import SettingsPage from "./pages/admin/SettingsPage";
 import BranchHospitalManagement from "./pages/admin/BranchHospitalManagement";
 import BranchHospitalDashboard from "./pages/BranchHospitalDashboard";
+import MyReports from "./pages/MyReports";
 
 const queryClient = new QueryClient();
 
@@ -59,6 +60,7 @@ const App = () => (
             <Route path="/donor-registration" element={<DonorRegistration />} />
             <Route path="/donor-dashboard" element={<DonorDashboard />} />
             <Route path="/donor-matching-requirements" element={<DonorMatchingRequirements />} />
+            <Route path="/my-reports" element={<MyReports />} />
             <Route path="/hospital-dashboard" element={<HospitalDashboard />} />
             <Route path="/hospital-requirements" element={<HospitalRequirements />} />
             <Route path="/hospital-shortlist" element={<HospitalShortlist />} />

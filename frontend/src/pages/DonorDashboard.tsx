@@ -353,7 +353,7 @@ const DonorDashboard = () => {
       });
       
       pdf.addImage(imgData, 'PNG', 0, 0, 85.6, 53.98);
-      pdf.save(`donor-card-${application?.full_name.replace(/\s/g, '-')}.pdf`);
+      pdf.save(`donor-card-${application?.full_name.replace(/s/g, '-')}.pdf`);
       
       toast({
         title: "Card Downloaded",
@@ -547,6 +547,38 @@ const DonorDashboard = () => {
               </div>
             </Card>
           )}
+          
+          {/* My Reports Card */}
+          <Card 
+            className="p-6 mb-8 bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-200 hover:shadow-strong transition-all cursor-pointer"
+            onClick={() => navigate('/my-reports')}
+            data-testid="my-reports-card"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center">
+                  <Download className="h-7 w-7 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold text-blue-900 mb-1">
+                    My Reports
+                  </h3>
+                  <p className="text-sm text-blue-700">
+                    {application.eligibility_report_url 
+                      ? 'View and download your eligibility report'
+                      : 'Your checkup reports will appear here'}
+                  </p>
+                </div>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                className="text-blue-600 hover:text-blue-700 hover:bg-blue-100"
+              >
+                <ArrowRight className="h-6 w-6" />
+              </Button>
+            </div>
+          </Card>
 
           {/* Profile Completion Tips */}
           {profileTips.length > 0 && (
