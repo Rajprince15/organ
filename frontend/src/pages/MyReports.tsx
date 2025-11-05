@@ -175,7 +175,7 @@ const MyReports = () => {
     return (
       <div className="min-h-screen bg-background">
         <Navigation />
-        <div className="pt-24 pb-16">
+        <div className="pt-20 pb-16 lg:pt-28">
           <div className="container mx-auto px-4">
             <p className="text-center">Loading...</p>
           </div>
@@ -189,7 +189,7 @@ const MyReports = () => {
     return (
       <div className="min-h-screen bg-background">
         <Navigation />
-        <div className="pt-24 pb-16">
+        <div className="pt-20 pb-16 lg:pt-28">
           <div className="container mx-auto px-4 max-w-4xl">
             <Card className="p-8 text-center">
               <AlertCircle className="h-16 w-16 text-gray-400 mx-auto mb-4" />

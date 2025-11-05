@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -16,6 +18,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { AlertCircle, Edit, Trash2, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -43,6 +53,15 @@ export const RequirementsManagementTab = ({ token }: RequirementsManagementTabPr
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
   const [urgencyFilter, setUrgencyFilter] = useState("all");
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editingReq, setEditingReq] = useState<HospitalRequirement | null>(null);
+  const [editForm, setEditForm] = useState({
+    patient_name: "",
+    organ_required: "",
+    blood_group: "",
+    urgency_level: "",
+    status: ""
+  });
 
   useEffect(() => {
     fetchRequirements();
@@ -106,6 +125,41 @@ export const RequirementsManagementTab = ({ token }: RequirementsManagementTabPr
     };
     const config = configs[status] || configs.active;
     return <Badge variant={config.variant} className="capitalize">{status}</Badge>;
+  };
+
+  const handleEditRequirement = (req: HospitalRequirement) => {
+    setEditingReq(req);
+    setEditForm({
+      patient_name: req.patient_name,
+      organ_required: req.organ_required,
+      blood_group: req.blood_group,
+      urgency_level: req.urgency_level,
+      status: req.status
+    });
+    setShowEditDialog(true);
+  };
+
+  const handleUpdateRequirement = async () => {
+    if (!editingReq) return;
+
+    try {
+      const response = await fetch(`${API_URL}/api/admin/requirements/${editingReq.id}`, {
+        method: 'PUT',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(editForm)
+      });
+
+      if (response.ok) {
+        toast({ title: "Requirement updated successfully" });
+        setShowEditDialog(false);
+        fetchRequirements();
+      }
+    } catch (error) {
+      toast({ title: "Failed to update requirement", variant: "destructive" });
+    }
   };
 
   const handleDeleteRequirement = async (id: string) => {
@@ -194,6 +248,14 @@ export const RequirementsManagementTab = ({ token }: RequirementsManagementTabPr
                   <div className="flex gap-2">
                     <Button
                       size="sm"
+                      variant="outline"
+                      onClick={() => handleEditRequirement(req)}
+                      data-testid={`edit-req-${req.id}`}
+                    >
+                      <Edit className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      size="sm"
                       variant="destructive"
                       onClick={() => handleDeleteRequirement(req.id)}
                       data-testid={`delete-req-${req.id}`}
@@ -229,6 +291,105 @@ export const RequirementsManagementTab = ({ token }: RequirementsManagementTabPr
           </p>
         </div>
       </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Hospital Requirement</DialogTitle>
+            <DialogDescription>
+              Update the requirement details below
+            </DialogDescription>
+          </DialogHeader>
+          
+          {editingReq && (
+            <div className="space-y-4">
+              <div>
+                <Label>Patient Name</Label>
+                <Input
+                  value={editForm.patient_name}
+                  onChange={(e) => setEditForm({...editForm, patient_name: e.target.value})}
+                  data-testid="edit-patient-name"
+                />
+              </div>
+              
+              <div>
+                <Label>Organ Required</Label>
+                <Select value={editForm.organ_required} onValueChange={(val) => setEditForm({...editForm, organ_required: val})}>
+                  <SelectTrigger data-testid="edit-organ-select">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Heart">Heart</SelectItem>
+                    <SelectItem value="Lungs">Lungs</SelectItem>
+                    <SelectItem value="Liver">Liver</SelectItem>
+                    <SelectItem value="Kidneys">Kidneys</SelectItem>
+                    <SelectItem value="Pancreas">Pancreas</SelectItem>
+                    <SelectItem value="Intestines">Intestines</SelectItem>
+                    <SelectItem value="Corneas">Corneas</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Blood Group</Label>
+                <Select value={editForm.blood_group} onValueChange={(val) => setEditForm({...editForm, blood_group: val})}>
+                  <SelectTrigger data-testid="edit-blood-group-select">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="A+">A+</SelectItem>
+                    <SelectItem value="A-">A-</SelectItem>
+                    <SelectItem value="B+">B+</SelectItem>
+                    <SelectItem value="B-">B-</SelectItem>
+                    <SelectItem value="AB+">AB+</SelectItem>
+                    <SelectItem value="AB-">AB-</SelectItem>
+                    <SelectItem value="O+">O+</SelectItem>
+                    <SelectItem value="O-">O-</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Urgency Level</Label>
+                <Select value={editForm.urgency_level} onValueChange={(val) => setEditForm({...editForm, urgency_level: val})}>
+                  <SelectTrigger data-testid="edit-urgency-select">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="critical">🔴 Critical</SelectItem>
+                    <SelectItem value="high">🟠 High</SelectItem>
+                    <SelectItem value="medium">🟡 Medium</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Status</Label>
+                <Select value={editForm.status} onValueChange={(val) => setEditForm({...editForm, status: val})}>
+                  <SelectTrigger data-testid="edit-status-select">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="fulfilled">Fulfilled</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateRequirement} data-testid="save-requirement-btn">
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

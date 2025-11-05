@@ -353,7 +353,7 @@ const DonorDashboard = () => {
       });
       
       pdf.addImage(imgData, 'PNG', 0, 0, 85.6, 53.98);
-      pdf.save(`donor-card-${application?.full_name.replace(/s/g, '-')}.pdf`);
+      pdf.save(`donor-card-${application?.full_name.replace(/\s/g, '-')}.pdf`);
       
       toast({
         title: "Card Downloaded",
@@ -402,7 +402,7 @@ const DonorDashboard = () => {
     return (
       <div className="min-h-screen bg-background">
         <Navigation />
-        <div className="pt-24 pb-16 flex items-center justify-center">
+        <div className="pt-20 pb-16 lg:pt-28 flex items-center justify-center">
           <p className="text-muted-foreground">Loading...</p>
         </div>
         <Footer />
@@ -414,7 +414,7 @@ const DonorDashboard = () => {
     return (
       <div className="min-h-screen bg-background">
         <Navigation />
-        <div className="pt-24 pb-16 lg:pt-32 lg:pb-24">
+        <div className="pt-20 pb-16 lg:pt-28 lg:pb-24">
           <div className="container mx-auto px-4 lg:px-8 max-w-4xl">
             <Card className="p-12 text-center">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-muted rounded-full mb-4">
@@ -448,7 +448,7 @@ const DonorDashboard = () => {
     <div className="min-h-screen bg-background">
       <Navigation />
       
-      <div className="pt-24 pb-16 lg:pt-32 lg:pb-24">
+      <div className="pt-20 pb-16 lg:pt-28 lg:pb-24">
         <div className="container mx-auto px-4 lg:px-8 max-w-6xl">
           {/* Header */}
           <div className="mb-8">

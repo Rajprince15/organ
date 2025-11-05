@@ -296,7 +296,7 @@ export default function UserManagement() {
     <div className="min-h-screen flex flex-col bg-gray-50">
       <Navigation />
       
-      <main className="flex-1 container mx-auto px-4 py-8">
+      <main className="flex-1 container mx-auto px-4 py-8 pt-20 lg:pt-28">
         <div className="max-w-7xl mx-auto space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between">
@@ -417,14 +417,17 @@ export default function UserManagement() {
                             <Badge className={getRoleBadgeColor(u.role)}>
                               {u.role.replace("_", " ").toUpperCase()}
                             </Badge>
-                            {!u.is_active && (
-                              <Badge variant="outline" className="bg-red-50 text-red-700">
-                                Inactive
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            {u.is_active ? (
+                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+                                ✓ Active
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300">
+                                ✗ Inactive
                               </Badge>
                             )}
-                          </div>
-                          <div className="text-sm text-gray-600 mt-1">
-                            {u.email} {u.mobile && `• ${u.mobile}`}
                           </div>
                         </div>
                       </div>
