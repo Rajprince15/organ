@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, Request, Query
+from fastapi import FastAPI, APIRouter, Request, Query, UploadFile, File
 from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -119,6 +119,19 @@ async def get_status_checks():
 
 # Include auth router
 api_router.include_router(auth_router)
+
+# File serving route
+from fastapi.responses import FileResponse
+
+@api_router.get("/uploads/{folder}/{filename}")
+async def serve_uploaded_file(folder: str, filename: str):
+    """Serve uploaded files"""
+    file_path = Path(f"/app/backend/uploads/{folder}/{filename}")
+    
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    return FileResponse(file_path)
 
 # Donation Application Routes
 @api_router.post("/donations", response_model=DonationApplication)
@@ -2184,6 +2197,255 @@ async def reset_branch_hospital_password(
             "password": new_password
         },
         "email_sent": email_sent
+    }
+
+# ============================================
+# BRANCH HOSPITAL DASHBOARD ROUTES
+# ============================================
+
+@api_router.get("/branch-hospital/assigned-donors")
+async def get_assigned_donors(
+    current_user: dict = Depends(get_current_user),
+    status: Optional[str] = None,
+    page: int = 1,
+    limit: int = 50
+):
+    """Get all donors assigned to the current branch hospital"""
+    if current_user.get("role") != "branch_hospital":
+        raise HTTPException(status_code=403, detail="Branch hospital access required")
+    
+    # Get branch hospital record to find its ID
+    branch_hospital = await db.branch_hospitals.find_one({"email": current_user["email"]})
+    if not branch_hospital:
+        raise HTTPException(status_code=404, detail="Branch hospital record not found")
+    
+    # Build filter
+    filter_dict = {"assigned_branch_hospital_id": branch_hospital["id"]}
+    
+    # Filter by checkup status if provided
+    if status:
+        filter_dict["checkup_status"] = status
+    
+    # Get all assigned donors
+    all_donors = await db.donation_applications.find(filter_dict).sort("created_at", -1).to_list(10000)
+    
+    # Pagination
+    total = len(all_donors)
+    start_idx = (page - 1) * limit
+    end_idx = start_idx + limit
+    paginated_donors = all_donors[start_idx:end_idx]
+    
+    return {
+        "donors": [DonationApplication(**donor) for donor in paginated_donors],
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "total_pages": (total + limit - 1) // limit,
+        "branch_hospital_name": branch_hospital["name"]
+    }
+
+@api_router.post("/branch-hospital/donors/{donor_id}/upload-report")
+async def upload_eligibility_report(
+    donor_id: str,
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user)
+):
+    """Upload eligibility report for a donor"""
+    if current_user.get("role") != "branch_hospital":
+        raise HTTPException(status_code=403, detail="Branch hospital access required")
+    
+    # Get branch hospital record
+    branch_hospital = await db.branch_hospitals.find_one({"email": current_user["email"]})
+    if not branch_hospital:
+        raise HTTPException(status_code=404, detail="Branch hospital record not found")
+    
+    # Verify donor is assigned to this branch hospital
+    donor = await db.donation_applications.find_one({
+        "donor_id": donor_id,
+        "assigned_branch_hospital_id": branch_hospital["id"]
+    })
+    
+    if not donor:
+        raise HTTPException(
+            status_code=404,
+            detail="Donor not found or not assigned to your branch hospital"
+        )
+    
+    # Upload file
+    from file_upload_service import file_upload_service
+    
+    try:
+        file_url, file_path = await file_upload_service.upload_file(file, folder="eligibility_reports")
+        
+        # Update donor record with report URL
+        await db.donation_applications.update_one(
+            {"donor_id": donor_id},
+            {"$set": {
+                "eligibility_report_url": file_url,
+                "checkup_status": "completed",
+                "checkup_date": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            }}
+        )
+        
+        logger.info(f"✅ Eligibility report uploaded for donor {donor_id} by {branch_hospital['name']}")
+        
+        # Notify admin (optional)
+        await create_notification(
+            db=db,
+            user_id=donor["donor_id"],
+            notification_type="general",
+            title="Eligibility Report Uploaded",
+            message=f"Your eligibility report has been uploaded by {branch_hospital['name']}. We're reviewing it now.",
+            link="/donor-dashboard"
+        )
+        
+        return {
+            "message": "Report uploaded successfully",
+            "file_url": file_url,
+            "donor_id": donor_id
+        }
+        
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"❌ Error uploading report: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to upload report: {str(e)}")
+
+@api_router.put("/branch-hospital/donors/{donor_id}/mark-eligibility")
+async def mark_donor_eligibility(
+    donor_id: str,
+    eligibility_data: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    """Mark donor as eligible or not eligible"""
+    if current_user.get("role") != "branch_hospital":
+        raise HTTPException(status_code=403, detail="Branch hospital access required")
+    
+    # Validate input
+    eligibility_status = eligibility_data.get("eligibility_status")
+    if eligibility_status not in ["eligible", "not_eligible"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid eligibility status. Must be 'eligible' or 'not_eligible'"
+        )
+    
+    notes = eligibility_data.get("notes", "")
+    
+    # Get branch hospital record
+    branch_hospital = await db.branch_hospitals.find_one({"email": current_user["email"]})
+    if not branch_hospital:
+        raise HTTPException(status_code=404, detail="Branch hospital record not found")
+    
+    # Verify donor is assigned to this branch hospital
+    donor = await db.donation_applications.find_one({
+        "donor_id": donor_id,
+        "assigned_branch_hospital_id": branch_hospital["id"]
+    })
+    
+    if not donor:
+        raise HTTPException(
+            status_code=404,
+            detail="Donor not found or not assigned to your branch hospital"
+        )
+    
+    # Update donor record
+    update_data = {
+        "checkup_status": eligibility_status,
+        "updated_at": datetime.utcnow()
+    }
+    
+    # If eligible, also update status to approved
+    if eligibility_status == "eligible":
+        update_data["status"] = "approved"
+    
+    await db.donation_applications.update_one(
+        {"donor_id": donor_id},
+        {"$set": update_data}
+    )
+    
+    logger.info(f"✅ Donor {donor_id} marked as {eligibility_status} by {branch_hospital['name']}")
+    
+    # Send email notification to donor
+    from email_service import email_service
+    email_sent = await email_service.send_donor_eligibility_notification(
+        donor_name=donor["full_name"],
+        to_email=donor["email"],
+        eligibility_status=eligibility_status,
+        branch_hospital_name=branch_hospital["name"],
+        report_url=donor.get("eligibility_report_url")
+    )
+    
+    # Create in-app notification for donor
+    if eligibility_status == "eligible":
+        notification_title = "Congratulations! You're Eligible"
+        notification_message = f"Your eligibility has been confirmed by {branch_hospital['name']}. Your profile is now active in our donor database!"
+    else:
+        notification_title = "Eligibility Update"
+        notification_message = f"Your eligibility assessment has been completed by {branch_hospital['name']}. Please check your email for details."
+    
+    await create_notification(
+        db=db,
+        user_id=donor["donor_id"],
+        notification_type="status_change",
+        title=notification_title,
+        message=notification_message,
+        link="/donor-dashboard"
+    )
+    
+    # Notify admin if not eligible
+    if eligibility_status == "not_eligible":
+        # Get all admins
+        admins = await db.users.find({"role": "admin"}).to_list(100)
+        for admin in admins:
+            await create_notification(
+                db=db,
+                user_id=admin["id"],
+                notification_type="general",
+                title="Donor Marked Not Eligible",
+                message=f"Donor {donor['full_name']} has been marked as not eligible by {branch_hospital['name']}.",
+                link="/admin/donations"
+            )
+    
+    return {
+        "message": f"Donor marked as {eligibility_status} successfully",
+        "donor_id": donor_id,
+        "eligibility_status": eligibility_status,
+        "email_sent": email_sent
+    }
+
+@api_router.get("/branch-hospital/dashboard-stats")
+async def get_branch_hospital_stats(
+    current_user: dict = Depends(get_current_user)
+):
+    """Get dashboard statistics for branch hospital"""
+    if current_user.get("role") != "branch_hospital":
+        raise HTTPException(status_code=403, detail="Branch hospital access required")
+    
+    # Get branch hospital record
+    branch_hospital = await db.branch_hospitals.find_one({"email": current_user["email"]})
+    if not branch_hospital:
+        raise HTTPException(status_code=404, detail="Branch hospital record not found")
+    
+    # Get all assigned donors
+    all_assigned = await db.donation_applications.find({
+        "assigned_branch_hospital_id": branch_hospital["id"]
+    }).to_list(10000)
+    
+    # Calculate statistics
+    total_assigned = len(all_assigned)
+    pending_checkup = len([d for d in all_assigned if d.get("checkup_status") == "pending_checkup"])
+    completed = len([d for d in all_assigned if d.get("checkup_status") == "completed"])
+    eligible = len([d for d in all_assigned if d.get("checkup_status") == "eligible"])
+    not_eligible = len([d for d in all_assigned if d.get("checkup_status") == "not_eligible"])
+    
+    return {
+        "branch_hospital_name": branch_hospital["name"],
+        "total_assigned_donors": total_assigned,
+        "pending_checkup": pending_checkup,
+        "checkup_completed": completed,
+        "eligible_donors": eligible,
+        "not_eligible_donors": not_eligible
     }
 
 # ============================================

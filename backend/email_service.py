@@ -279,6 +279,123 @@ For support, please use the contact methods mentioned above.
             return await self._send_smtp_email(to_email, subject, email_body)
         else:
             return self._send_mock_email(to_email, subject, email_body)
+    async def send_donor_eligibility_notification(
+        self,
+        donor_name: str,
+        to_email: str,
+        eligibility_status: str,
+        branch_hospital_name: str,
+        report_url: Optional[str] = None
+    ) -> bool:
+        """
+        Send donor notification about eligibility determination.
+        
+        Args:
+            donor_name: Name of the donor
+            to_email: Donor's email address
+            eligibility_status: "eligible" or "not_eligible"
+            branch_hospital_name: Name of branch hospital that assessed
+            report_url: Optional URL to the eligibility report
+            
+        Returns:
+            bool: True if email was sent successfully (or logged in mock mode)
+        """
+        
+        if eligibility_status == "eligible":
+            subject = "Congratulations! You're Eligible for Organ Donation"
+            
+            email_body = f"""
+Dear {donor_name},
+
+🎉 GREAT NEWS! You've been approved as an eligible organ donor!
+
+Your eligibility checkup has been completed by {branch_hospital_name}, and you have been cleared for organ donation.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ ELIGIBILITY STATUS: APPROVED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📋 WHAT'S NEXT:
+
+1. Your profile is now ACTIVE in our donor database
+2. Hospitals searching for compatible donors can now see your profile
+3. You'll be notified if you're a match for someone in need
+4. Keep your contact information updated in your dashboard
+
+🌟 YOUR IMPACT:
+
+By becoming an organ donor, you have the potential to:
+- Save up to 8 lives through organ donation
+- Enhance the lives of up to 75 people through tissue donation
+- Bring hope to families waiting for life-saving transplants
+
+📱 STAY CONNECTED:
+
+- Log in to your dashboard to view your profile
+- Update your information if anything changes
+- Share your donor story to inspire others
+
+Thank you for your incredible generosity and commitment to saving lives!
+
+Best regards,
+The Organ Connect Team
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+This is an automated email. Please do not reply to this message.
+For questions, visit: {os.environ.get('FRONTEND_URL', 'https://organconnect.com')}/support
+            """
+        else:  # not_eligible
+            subject = "Organ Donation Eligibility Update"
+            
+            email_body = f"""
+Dear {donor_name},
+
+Thank you for your interest in becoming an organ donor and for completing your eligibility checkup at {branch_hospital_name}.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ELIGIBILITY STATUS UPDATE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+After reviewing your medical assessment, we regret to inform you that you are currently not eligible for organ donation at this time.
+
+This decision is based on medical criteria designed to ensure the safety of both donors and recipients.
+
+📋 WHAT THIS MEANS:
+
+- Your application status has been updated in our system
+- This determination is based on current medical guidelines
+- Eligibility criteria may change over time
+
+💡 IMPORTANT INFORMATION:
+
+- Medical eligibility can change based on health status changes
+- You may reapply in the future if your health situation changes
+- There are other ways to support organ donation:
+  * Volunteer with organ donation awareness programs
+  * Share information about organ donation with others
+  * Support organ donation advocacy initiatives
+
+❓ HAVE QUESTIONS?
+
+If you have questions about your eligibility determination:
+- Contact {branch_hospital_name} for medical details
+- Visit our FAQ section: {os.environ.get('FRONTEND_URL', 'https://organconnect.com')}/support
+- Email our support team: support@organconnect.com
+
+We appreciate your willingness to help save lives, and we thank you for your time and consideration.
+
+Best regards,
+The Organ Connect Team
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+This is an automated email. Please do not reply to this message.
+For questions, visit: {os.environ.get('FRONTEND_URL', 'https://organconnect.com')}/support
+            """
+        
+        if self.smtp_enabled:
+            return await self._send_smtp_email(to_email, subject, email_body)
+        else:
+            return self._send_mock_email(to_email, subject, email_body)
 
 
 # Singleton instance

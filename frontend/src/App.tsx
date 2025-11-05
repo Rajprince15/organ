@@ -40,6 +40,7 @@ import AuditPage from "./pages/admin/AuditPage";
 import BroadcastPage from "./pages/admin/BroadcastPage";
 import SettingsPage from "./pages/admin/SettingsPage";
 import BranchHospitalManagement from "./pages/admin/BranchHospitalManagement";
+import BranchHospitalDashboard from "./pages/BranchHospitalDashboard";
 
 const queryClient = new QueryClient();
 
@@ -64,6 +65,9 @@ const App = () => (
             <Route path="/hospital-compatible-donors" element={<HospitalCompatibleDonors />} />
             <Route path="/donor-list" element={<EnhancedDonorListPage />} />
             <Route path="/recipient-portal" element={<RecipientPortal />} />
+            
+            {/* Branch Hospital Routes */}
+            <Route path="/branch-hospital-dashboard" element={<BranchHospitalDashboard />} />
             
             {/* Admin Routes */}
             <Route path="/admin" element={<AdminDashboard />} />

@@ -88,6 +88,20 @@ const Navigation = () => {
                     </Button>
                   </Link>
                 )}
+                {/* Show Branch Hospital Dashboard button for branch hospitals */}
+                {user.role === 'branch_hospital' && (
+                  <Link to="/branch-hospital-dashboard">
+                    <Button 
+                      variant="outline" 
+                      className="border-secondary text-secondary hover:bg-secondary hover:text-secondary-foreground transition-smooth"
+                      data-testid="nav-branch-hospital-dashboard-button"
+                    >
+                      <User className="h-4 w-4 mr-2" />
+                      My Dashboard
+                    </Button>
+                  </Link>
+                )}
+
                 {/* Show Admin Dashboard button for admins */}
                 {user.role === 'admin' && (
                   <Link to="/admin-dashboard">
