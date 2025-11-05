@@ -1736,126 +1736,72 @@ For urgent medical emergencies, contact your local hospital directly. This platf
     admin_user = next((u for u in test_users if u['role'] == 'admin'), None)
     admin_id_ref = admin_user['id'] if admin_user else str(uuid.uuid4())
     
-    # Create branch hospital users
+    # Create ONLY ONE branch hospital (as requested)
+    # Use a consistent ID for both user and branch hospital record
     branch_hospital_id_1 = str(uuid.uuid4())
-    branch_hospital_id_2 = str(uuid.uuid4())
-    branch_hospital_id_3 = str(uuid.uuid4())
     
-    branch_hospital_users = [
-        {
-            "id": branch_hospital_id_1,
-            "email": "branch.downtown@organconnect.com",
-            "hashed_password": pwd_context.hash("branch123"),
-            "role": "branch_hospital",
-            "name": "Downtown Medical Branch",
-            "mobile": "+1234567850",
-            "age": None,
-            "mobile_verified": True,
-            "is_active": True,
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow()
-        },
-        {
-            "id": branch_hospital_id_2,
-            "email": "branch.northside@organconnect.com",
-            "hashed_password": pwd_context.hash("branch123"),
-            "role": "branch_hospital",
-            "name": "Northside Health Center Branch",
-            "mobile": "+1234567851",
-            "age": None,
-            "mobile_verified": True,
-            "is_active": True,
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow()
-        },
-        {
-            "id": branch_hospital_id_3,
-            "email": "branch.eastvalley@organconnect.com",
-            "hashed_password": pwd_context.hash("branch123"),
-            "role": "branch_hospital",
-            "name": "East Valley Clinic Branch",
-            "mobile": "+1234567852",
-            "age": None,
-            "mobile_verified": True,
-            "is_active": True,
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow()
-        }
-    ]
+    branch_hospital_user = {
+        "id": branch_hospital_id_1,
+        "email": "branch.downtown@organconnect.com",
+        "hashed_password": pwd_context.hash("branch123"),
+        "role": "branch_hospital",
+        "name": "Downtown Medical Branch",
+        "mobile": "+1234567850",
+        "age": None,
+        "mobile_verified": True,
+        "is_active": True,
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow()
+    }
     
-    # Insert branch hospital users
-    for branch_user in branch_hospital_users:
-        user_id = branch_user['id']
-        db.users._data[user_id] = branch_user.copy()
+    # Insert branch hospital user
+    db.users._data[branch_hospital_id_1] = branch_hospital_user.copy()
     
-    # Create branch hospital records
-    sample_branch_hospitals = [
-        {
-            "id": str(uuid.uuid4()),
-            "name": "Downtown Medical Branch",
-            "email": "branch.downtown@organconnect.com",
-            "license_number": "BH-2024-001",
-            "address": "123 Medical Plaza, Suite 500",
-            "city": "New York",
-            "state": "New York",
-            "country": "USA",
-            "contact_number": "+1234567850",
-            "contact_person": "Dr. Sarah Mitchell",
-            "auto_generated_password": "branch123",
-            "created_by_admin_id": admin_id_ref,
-            "created_by_admin_name": "Admin User",
-            "is_active": True,
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow()
-        },
-        {
-            "id": str(uuid.uuid4()),
-            "name": "Northside Health Center Branch",
-            "email": "branch.northside@organconnect.com",
-            "license_number": "BH-2024-002",
-            "address": "456 Healthcare Drive, Building B",
-            "city": "Los Angeles",
-            "state": "California",
-            "country": "USA",
-            "contact_number": "+1234567851",
-            "contact_person": "Dr. Michael Rodriguez",
-            "auto_generated_password": "branch123",
-            "created_by_admin_id": admin_id_ref,
-            "created_by_admin_name": "Admin User",
-            "is_active": True,
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow()
-        },
-        {
-            "id": str(uuid.uuid4()),
-            "name": "East Valley Clinic Branch",
-            "email": "branch.eastvalley@organconnect.com",
-            "license_number": "BH-2024-003",
-            "address": "789 Valley Road, Medical Center",
-            "city": "Chicago",
-            "state": "Illinois",
-            "country": "USA",
-            "contact_number": "+1234567852",
-            "contact_person": "Dr. Jennifer Lee",
-            "auto_generated_password": "branch123",
-            "created_by_admin_id": admin_id_ref,
-            "created_by_admin_name": "Admin User",
-            "is_active": True,
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow()
-        }
-    ]
+    # Create branch hospital record (using SAME ID)
+    branch_hospital_record = {
+        "id": branch_hospital_id_1,  # Same ID as user for consistency
+        "name": "Downtown Medical Branch",
+        "email": "branch.downtown@organconnect.com",
+        "license_number": "BH-2024-001",
+        "address": "123 Medical Plaza, Suite 500",
+        "city": "New York",
+        "state": "New York",
+        "country": "USA",
+        "contact_number": "+1234567850",
+        "contact_person": "Dr. Sarah Mitchell",
+        "auto_generated_password": "branch123",
+        "created_by_admin_id": admin_id_ref,
+        "created_by_admin_name": "Admin User",
+        "is_active": True,
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow()
+    }
     
-    # Insert branch hospitals
-    for branch_hospital in sample_branch_hospitals:
-        branch_id = branch_hospital['id']
-        db.branch_hospitals._data[branch_id] = branch_hospital.copy()
+    # Insert branch hospital record
+    db.branch_hospitals._data[branch_hospital_id_1] = branch_hospital_record.copy()
+    
+    # Assign some donors to this branch hospital
+    # Update first 5 donors to be assigned to this branch hospital with pending checkup status
+    donors_to_assign = list(sample_donations)[:5]
+    for idx, donation in enumerate(donors_to_assign):
+        donation_id = donation['id']
+        # Update the donation in the sample_donations list
+        sample_donations[idx]["assigned_branch_hospital_id"] = branch_hospital_id_1
+        sample_donations[idx]["assigned_branch_hospital_name"] = "Downtown Medical Branch"
+        sample_donations[idx]["checkup_status"] = "pending_checkup"
+        sample_donations[idx]["updated_at"] = datetime.utcnow()
+        # Also update in the database
+        db.donation_applications._data[donation_id]["assigned_branch_hospital_id"] = branch_hospital_id_1
+        db.donation_applications._data[donation_id]["assigned_branch_hospital_name"] = "Downtown Medical Branch"
+        db.donation_applications._data[donation_id]["checkup_status"] = "pending_checkup"
+        db.donation_applications._data[donation_id]["updated_at"] = datetime.utcnow()
 
 
     print("Mock database seeded with test users:")
     print("   - donor@organconnect.com / donor123 (with donation application)")
     print("   - hospital@organconnect.com / hospital123 (with requirements)")
     print("   - admin@organconnect.com / admin123")
+    print("   - branch.downtown@organconnect.com / branch123 (Branch Hospital - with 5 assigned donors)")
     print(f"   - Created {len(sample_donations)} approved donor applications")
     print(f"   - Created {len(sample_requirements)} hospital requirements")
     print(f"   - Created {len(sample_notifications)} sample notifications")
@@ -1868,8 +1814,6 @@ For urgent medical emergencies, contact your local hospital directly. This platf
     print(f"   - Created {len(sample_contacts)} contact history entries")
     print(f"   - Created {len(sample_faqs)} FAQs (Phase 3B)")
     print(f"   - Created {len(sample_help_docs)} help documents (Phase 3B)")
-    print(f"   - Created {len(sample_branch_hospitals)} branch hospitals")
-    print("   - Branch Hospital Accounts:")
+    print(f"   - Created 1 branch hospital with 5 assigned donors")
+    print("   - Branch Hospital Account:")
     print("     * branch.downtown@organconnect.com / branch123")
-    print("     * branch.northside@organconnect.com / branch123")
-    print("     * branch.eastvalley@organconnect.com / branch123")

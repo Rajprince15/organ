@@ -1955,9 +1955,10 @@ async def create_branch_hospital(
     )
     await db.users.insert_one(branch_user.model_dump())
     
-    # Create branch hospital record
+    # Create branch hospital record with SAME ID as user for consistency
     from models import BranchHospital
     branch_hospital = BranchHospital(
+        id=branch_user.id,  # Use same ID as the user account
         name=branch_data.name,
         email=branch_data.email,
         license_number=branch_data.license_number,
