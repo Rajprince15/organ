@@ -13,11 +13,11 @@ class SMSService:
     """SMS service with mock and Twilio support"""
     
     def __init__(self):
-        # Check if we should use real SMS or mock
-        self.use_real_sms = os.environ.get('USE_REAL_SMS', 'false').lower() == 'true'
+        # Check if SMS is enabled (future use)
+        self.enable_sms = os.environ.get('ENABLE_SMS', 'false').lower() == 'true'
         self.twilio_enabled = False
         
-        if self.use_real_sms:
+        if self.enable_sms:
             try:
                 # Try importing Twilio
                 from twilio.rest import Client
