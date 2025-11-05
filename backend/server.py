@@ -127,7 +127,7 @@ async def create_donation_application(
     current_user: dict = Depends(get_current_user),
     request: Request = None
 ):
-    """Create a new donation application for the current donor"""
+    """Create a new donation application for the current donor with auto-assignment to branch hospital"""
     if current_user.get("role") != "donor":
         raise HTTPException(status_code=403, detail="Only donors can create donation applications")
     
@@ -144,7 +144,60 @@ async def create_donation_application(
     app_obj = DonationApplication(**app_dict)
     await db.donation_applications.insert_one(app_obj.model_dump())
     
-    return app_obj
+    # Auto-assign branch hospital based on location
+    from branch_assignment_service import find_nearest_branch_hospital
+    
+    branch_hospital = await find_nearest_branch_hospital(
+        db=db,
+        city=application.city or "",
+        state=application.state or "",
+        country=application.country or "USA"
+    )
+    
+    if branch_hospital:
+        # Assign branch hospital to donor
+        await db.donation_applications.update_one(
+            {"id": app_obj.id},
+            {"$set": {
+                "assigned_branch_hospital_id": branch_hospital["id"],
+                "assigned_branch_hospital_name": branch_hospital["name"],
+                "checkup_status": "pending_checkup",
+                "updated_at": datetime.utcnow()
+            }}
+        )
+        
+        # Send email notification to donor
+        from email_service import email_service
+        email_sent = await email_service.send_donor_checkup_notification(
+            donor_name=application.full_name,
+            to_email=application.email,
+            branch_hospital_name=branch_hospital["name"],
+            branch_address=branch_hospital["address"],
+            branch_city=branch_hospital["city"],
+            branch_state=branch_hospital["state"],
+            branch_phone=branch_hospital["contact_number"],
+            branch_email=branch_hospital["email"]
+        )
+        
+        # Send SMS notification to donor
+        from sms_service import sms_service
+        sms_sent = await sms_service.send_donor_checkup_sms(
+            donor_name=application.full_name,
+            to_phone=application.phone,
+            branch_hospital_name=branch_hospital["name"],
+            branch_address=f"{branch_hospital['address']}, {branch_hospital['city']}, {branch_hospital['state']}",
+            branch_phone=branch_hospital["contact_number"]
+        )
+        
+        logger.info(f"✅ Donor {application.full_name} assigned to branch hospital {branch_hospital['name']} (Email: {email_sent}, SMS: {sms_sent})")
+        
+        # Fetch updated application to return
+        updated_app = await db.donation_applications.find_one({"id": app_obj.id})
+        return DonationApplication(**updated_app)
+    else:
+        logger.warning(f"⚠️ No branch hospital available to assign to donor {application.full_name}")
+        # Return application even if no branch hospital found
+        return app_obj
 
 @api_router.get("/donations/me", response_model=DonationApplication | None)
 async def get_my_donation_application(
@@ -159,6 +212,46 @@ async def get_my_donation_application(
         return None
     
     return DonationApplication(**application)
+
+@api_router.get("/donations/me/branch-hospital")
+async def get_my_assigned_branch_hospital(
+    current_user: dict = Depends(get_current_user)
+):
+    """Get the branch hospital assigned to current donor"""
+    if current_user.get("role") != "donor":
+        raise HTTPException(status_code=403, detail="Only donors can access this endpoint")
+    
+    # Get donor's application
+    application = await db.donation_applications.find_one({"donor_id": current_user["id"]})
+    if not application:
+        raise HTTPException(status_code=404, detail="Donation application not found")
+    
+    # Check if branch hospital is assigned
+    if not application.get("assigned_branch_hospital_id"):
+        return {
+            "assigned": False,
+            "message": "No branch hospital assigned yet"
+        }
+    
+    # Get branch hospital details
+    branch_hospital = await db.branch_hospitals.find_one({"id": application["assigned_branch_hospital_id"]})
+    
+    if not branch_hospital:
+        return {
+            "assigned": False,
+            "message": "Assigned branch hospital not found"
+        }
+    
+    # Remove sensitive data
+    branch_hospital.pop("auto_generated_password", None)
+    
+    return {
+        "assigned": True,
+        "branch_hospital": branch_hospital,
+        "checkup_status": application.get("checkup_status", "none"),
+        "checkup_date": application.get("checkup_date"),
+        "eligibility_report_url": application.get("eligibility_report_url")
+    }
 
 @api_router.put("/donations/{application_id}", response_model=DonationApplication)
 async def update_donation_application(

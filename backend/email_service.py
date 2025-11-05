@@ -190,6 +190,95 @@ The Organ Connect Team
             return await self._send_smtp_email(to_email, subject, email_body)
         else:
             return self._send_mock_email(to_email, subject, email_body)
+    
+    async def send_donor_checkup_notification(
+        self,
+        donor_name: str,
+        to_email: str,
+        branch_hospital_name: str,
+        branch_address: str,
+        branch_city: str,
+        branch_state: str,
+        branch_phone: str,
+        branch_email: str
+    ) -> bool:
+        """
+        Send donor notification about assigned branch hospital for eligibility checkup.
+        
+        Args:
+            donor_name: Name of the donor
+            to_email: Donor's email address
+            branch_hospital_name: Name of assigned branch hospital
+            branch_address: Address of branch hospital
+            branch_city: City of branch hospital
+            branch_state: State of branch hospital
+            branch_phone: Phone number of branch hospital
+            branch_email: Email of branch hospital
+            
+        Returns:
+            bool: True if email was sent successfully (or logged in mock mode)
+        """
+        
+        subject = f"Welcome to Organ Connect - Eligibility Checkup Required"
+        
+        # Email body
+        email_body = f"""
+Dear {donor_name},
+
+Thank you for registering as an organ donor! Your compassion and generosity can save lives.
+
+🏥 YOU'VE BEEN ASSIGNED TO A BRANCH HOSPITAL
+
+To complete your registration, you need to undergo an eligibility checkup at the branch hospital assigned to you:
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hospital Name: {branch_hospital_name}
+Address:       {branch_address}
+               {branch_city}, {branch_state}
+Phone:         {branch_phone}
+Email:         {branch_email}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📋 NEXT STEPS:
+
+1. Contact the branch hospital to schedule your eligibility checkup
+   - Call them at: {branch_phone}
+   - Or email them at: {branch_email}
+
+2. During the checkup, the medical team will:
+   - Review your medical history
+   - Conduct necessary tests
+   - Assess your eligibility for organ donation
+
+3. After the checkup, the hospital will upload your eligibility report to our system
+
+4. Once approved, you'll be added to the active donor database
+
+⏰ IMPORTANT:
+- Please schedule your checkup within the next 7 days
+- Bring a valid government-issued ID
+- Bring any relevant medical records
+- The checkup is completely FREE of charge
+
+❓ Questions or Need Help?
+- Visit our Help Center: {os.environ.get('FRONTEND_URL', 'https://organconnect.com')}/support
+- Email: support@organconnect.com
+- Call: 1-800-ORGAN-DONATE
+
+Thank you for your commitment to saving lives through organ donation!
+
+Best regards,
+The Organ Connect Team
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+This is an automated email. Please do not reply to this message.
+For support, please use the contact methods mentioned above.
+        """
+        
+        if self.smtp_enabled:
+            return await self._send_smtp_email(to_email, subject, email_body)
+        else:
+            return self._send_mock_email(to_email, subject, email_body)
 
 
 # Singleton instance

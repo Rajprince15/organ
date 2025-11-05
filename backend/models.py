@@ -65,6 +65,12 @@ class DonationApplication(BaseModel):
     state: Optional[str] = None
     country: Optional[str] = None
     status: Literal["pending", "approved", "active", "cancelled"] = "pending"
+    # Branch Hospital Assignment Fields
+    assigned_branch_hospital_id: Optional[str] = None
+    assigned_branch_hospital_name: Optional[str] = None
+    checkup_status: Literal["pending_checkup", "scheduled", "completed", "eligible", "not_eligible", "none"] = "none"
+    checkup_date: Optional[datetime] = None
+    eligibility_report_url: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 

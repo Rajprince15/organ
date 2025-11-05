@@ -42,8 +42,27 @@ interface DonationApplication {
   country?: string;
   consent: boolean;
   status: "pending" | "approved" | "active" | "cancelled";
+  assigned_branch_hospital_id?: string;
+  assigned_branch_hospital_name?: string;
+  checkup_status?: "pending_checkup" | "scheduled" | "completed" | "eligible" | "not_eligible" | "none";
+  checkup_date?: string;
+  eligibility_report_url?: string;
   created_at: string;
   updated_at: string;
+}
+
+interface BranchHospital {
+  id: string;
+  name: string;
+  email: string;
+  license_number: string;
+  address: string;
+  city: string;
+  state: string;
+  country: string;
+  contact_number: string;
+  contact_person: string | null;
+  is_active: boolean;
 }
 
 const DonorDashboard = () => {
@@ -51,6 +70,7 @@ const DonorDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [application, setApplication] = useState<DonationApplication | null>(null);
+  const [branchHospital, setBranchHospital] = useState<BranchHospital | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -192,12 +212,36 @@ const DonorDashboard = () => {
             country: data.country || "",
             consent: data.consent,
           });
+          
+          // Fetch assigned branch hospital if available
+          if (data.assigned_branch_hospital_id) {
+            fetchBranchHospital();
+          }
         }
       }
     } catch (error) {
       console.error('Failed to fetch application:', error);
     } finally {
       setLoading(false);
+    }
+  };
+  
+  const fetchBranchHospital = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/donations/me/branch-hospital`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.assigned && data.branch_hospital) {
+          setBranchHospital(data.branch_hospital);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch branch hospital:', error);
     }
   };
 
@@ -544,6 +588,99 @@ const DonorDashboard = () => {
               </div>
             </div>
           </Card>
+
+          {/* Branch Hospital Checkup Card */}
+          {application.checkup_status && application.checkup_status !== "none" && branchHospital && (
+            <Card className="p-6 mb-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200" data-testid="branch-hospital-card">
+              <div className="space-y-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-blue-100 p-3 rounded-lg">
+                      <MapPin className="h-6 w-6 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">Eligibility Checkup Required</h3>
+                      <p className="text-sm text-gray-600">You've been assigned to a branch hospital</p>
+                    </div>
+                  </div>
+                  {application.checkup_status === "pending_checkup" && (
+                    <span className="px-3 py-1 bg-amber-100 text-amber-700 text-xs rounded-full font-medium border border-amber-200">
+                      Action Required
+                    </span>
+                  )}
+                  {application.checkup_status === "completed" && (
+                    <span className="px-3 py-1 bg-green-100 text-green-700 text-xs rounded-full font-medium border border-green-200">
+                      ✓ Completed
+                    </span>
+                  )}
+                </div>
+
+                <div className="bg-white rounded-lg p-4 shadow-sm border border-blue-100">
+                  <h4 className="font-semibold text-gray-900 mb-3">{branchHospital.name}</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-start gap-2">
+                      <MapPin className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                      <p className="text-gray-700">
+                        {branchHospital.address}, {branchHospital.city}, {branchHospital.state}, {branchHospital.country}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                      <a href={`tel:${branchHospital.contact_number}`} className="text-blue-600 hover:underline">
+                        {branchHospital.contact_number}
+                      </a>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                      <a href={`mailto:${branchHospital.email}`} className="text-blue-600 hover:underline">
+                        {branchHospital.email}
+                      </a>
+                    </div>
+                    {branchHospital.contact_person && (
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                        <p className="text-gray-700">Contact Person: {branchHospital.contact_person}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {application.checkup_status === "pending_checkup" && (
+                  <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
+                    <div className="flex gap-3">
+                      <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium text-amber-900">Next Steps:</p>
+                        <ol className="text-sm text-amber-800 space-y-1 list-decimal list-inside">
+                          <li>Contact the branch hospital to schedule your eligibility checkup</li>
+                          <li>Bring a valid government-issued ID and any relevant medical records</li>
+                          <li>The checkup is FREE of charge</li>
+                          <li>After the checkup, the hospital will upload your eligibility report</li>
+                        </ol>
+                        <p className="text-xs text-amber-700 mt-2">
+                          ⏰ Please schedule within 7 days of registration
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {application.checkup_status === "completed" && (
+                  <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                    <div className="flex gap-3">
+                      <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-green-900">Checkup Completed!</p>
+                        <p className="text-sm text-green-700">
+                          Your eligibility report has been submitted. You'll be notified once it's reviewed.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </Card>
+          )}
 
           {/* Application Details or Edit Form */}
           {!isEditing ? (
