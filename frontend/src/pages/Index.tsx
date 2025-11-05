@@ -89,21 +89,21 @@ const Index = () => {
               <div className="inline-flex items-center justify-center w-12 h-12 bg-primary/10 rounded-full mb-4">
                 <Users className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="text-3xl font-bold text-primary mb-2">50,000+</h3>
+              <h3 className="text-3xl font-bold text-primary mb-2">50+</h3>
               <p className="text-muted-foreground">Registered Donors</p>
             </Card>
             <Card className="p-6 text-center shadow-medium hover:shadow-strong transition-smooth">
               <div className="inline-flex items-center justify-center w-12 h-12 bg-secondary/10 rounded-full mb-4">
                 <Clock className="h-6 w-6 text-secondary" />
               </div>
-              <h3 className="text-3xl font-bold text-secondary mb-2">12,000+</h3>
-              <p className="text-muted-foreground">Patients Waiting</p>
+              <h3 className="text-3xl font-bold text-secondary mb-2">20+</h3>
+              <p className="text-muted-foreground">Patients Waiting Daily</p>
             </Card>
             <Card className="p-6 text-center shadow-medium hover:shadow-strong transition-smooth">
               <div className="inline-flex items-center justify-center w-12 h-12 bg-accent/10 rounded-full mb-4">
                 <Heart className="h-6 w-6 text-accent" />
               </div>
-              <h3 className="text-3xl font-bold text-accent mb-2">5,000+</h3>
+              <h3 className="text-3xl font-bold text-accent mb-2"></h3>
               <p className="text-muted-foreground">Successful Transplants</p>
             </Card>
           </div>
