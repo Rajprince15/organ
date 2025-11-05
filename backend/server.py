@@ -52,6 +52,12 @@ from match_logging_service import (
     get_algorithm_config,
     update_algorithm_config
 )
+from activity_logging_service import (
+    log_report_upload,
+    log_eligibility_change,
+    log_admin_status_update,
+    get_activity_logs
+)
 
 
 ROOT_DIR = Path(__file__).parent
@@ -265,6 +271,48 @@ async def get_my_assigned_branch_hospital(
         "checkup_date": application.get("checkup_date"),
         "eligibility_report_url": application.get("eligibility_report_url")
     }
+
+@api_router.get("/donations/me/report")
+async def download_my_eligibility_report(
+    current_user: dict = Depends(get_current_user)
+):
+    """Download donor's eligibility report"""
+    if current_user.get("role") != "donor":
+        raise HTTPException(status_code=403, detail="Only donors can download their reports")
+    
+    # Get donor's application
+    application = await db.donation_applications.find_one({"donor_id": current_user["id"]})
+    if not application:
+        raise HTTPException(status_code=404, detail="Donation application not found")
+    
+    # Check if report exists
+    report_url = application.get("eligibility_report_url")
+    if not report_url:
+        raise HTTPException(status_code=404, detail="No eligibility report available yet")
+    
+    # Extract filename from URL (format: /api/uploads/reports/filename.pdf)
+    # Report URL is typically stored as relative path
+    if report_url.startswith("/api/uploads/"):
+        # Extract the path after /api/uploads/
+        file_path_parts = report_url.replace("/api/uploads/", "").split("/")
+        if len(file_path_parts) >= 2:
+            folder = file_path_parts[0]
+            filename = file_path_parts[1]
+            file_path = Path(f"/app/backend/uploads/{folder}/{filename}")
+        else:
+            raise HTTPException(status_code=404, detail="Invalid report URL format")
+    else:
+        raise HTTPException(status_code=404, detail="Invalid report URL")
+    
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Report file not found on server")
+    
+    # Return file for download
+    return FileResponse(
+        path=file_path,
+        filename=filename,
+        media_type="application/pdf"
+    )
 
 @api_router.put("/donations/{application_id}", response_model=DonationApplication)
 async def update_donation_application(
@@ -1466,6 +1514,18 @@ async def update_donor_status_admin(
     if result.modified_count == 0:
         raise HTTPException(status_code=404, detail="Failed to update status")
     
+    # Log activity (critical action)
+    await log_admin_status_update(
+        db=db,
+        admin_id=current_user["id"],
+        admin_name=current_user["name"],
+        donor_id=donor_id,
+        donor_name=donor.get("full_name", "Unknown"),
+        old_status=old_status,
+        new_status=new_status,
+        action="status_update"
+    )
+    
     # Notify donor
     await create_status_change_notification(
         db=db,
@@ -1657,6 +1717,23 @@ async def get_recent_activity(
     activity = activity[:limit]
     
     return {"activity": activity}
+
+@api_router.get("/admin/activity-logs")
+async def get_admin_activity_logs(
+    current_user: dict = Depends(get_current_user),
+    activity_type: Optional[str] = None,
+    limit: int = 100
+):
+    """Get critical activity logs (report uploads, eligibility changes, admin updates)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    logs = await get_activity_logs(db, limit=limit, activity_type=activity_type)
+    
+    return {
+        "logs": logs,
+        "total": len(logs)
+    }
 
 # ============================================
 # COMMUNITY POSTS ROUTES
@@ -2480,7 +2557,17 @@ async def upload_eligibility_report(
         
         logger.info(f"✅ Eligibility report uploaded for donor {donor_id} by {branch_hospital['name']}")
         
-        # Notify admin (optional)
+        # Log activity (critical action)
+        await log_report_upload(
+            db=db,
+            branch_hospital_id=branch_hospital["id"],
+            branch_hospital_name=branch_hospital["name"],
+            donor_id=donor_id,
+            donor_name=donor["full_name"],
+            report_filename=file.filename
+        )
+        
+        # Notify donor
         await create_notification(
             db=db,
             user_id=donor["donor_id"],
@@ -2539,6 +2626,9 @@ async def mark_donor_eligibility(
             detail="Donor not found or not assigned to your branch hospital"
         )
     
+    # Store old status for activity logging
+    old_checkup_status = donor.get("checkup_status", "none")
+    
     # Update donor record
     update_data = {
         "checkup_status": eligibility_status,
@@ -2557,6 +2647,17 @@ async def mark_donor_eligibility(
     )
     
     logger.info(f"✅ Donor {donor_id} marked as {eligibility_status} by {branch_hospital['name']}")
+    
+    # Log activity (critical action)
+    await log_eligibility_change(
+        db=db,
+        branch_hospital_id=branch_hospital["id"],
+        branch_hospital_name=branch_hospital["name"],
+        donor_id=donor_id,
+        donor_name=donor["full_name"],
+        old_status=old_checkup_status,
+        new_status=eligibility_status
+    )
     
     # Send email notification to donor
     from email_service import email_service

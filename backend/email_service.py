@@ -1,6 +1,6 @@
 """
 Email Service for Organ Donation Platform
-Supports both mock (console logging) and real email (SMTP) modes
+Supports both mock (console logging) and real email (SendGrid) modes
 """
 import os
 import logging
@@ -11,33 +11,32 @@ logger = logging.getLogger(__name__)
 
 
 class EmailService:
-    """Email service with mock and SMTP support"""
+    """Email service with mock and SendGrid support"""
     
     def __init__(self):
         # Check if we should use real email or mock
         self.use_real_email = os.environ.get('USE_REAL_EMAIL', 'false').lower() == 'true'
-        self.smtp_enabled = False
+        self.sendgrid_enabled = False
+        self.from_email = os.environ.get('FROM_EMAIL', 'noreply@organconnect.com')
         
         if self.use_real_email:
             try:
-                # Try importing SMTP libraries
-                import smtplib
-                from email.mime.text import MIMEText
-                from email.mime.multipart import MIMEMultipart
+                # Try importing SendGrid
+                from sendgrid import SendGridAPIClient
+                from sendgrid.helpers.mail import Mail
                 
-                self.smtp_host = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
-                self.smtp_port = int(os.environ.get('SMTP_PORT', 587))
-                self.smtp_user = os.environ.get('SMTP_USER')
-                self.smtp_password = os.environ.get('SMTP_PASSWORD')
-                self.from_email = os.environ.get('FROM_EMAIL', 'noreply@organconnect.com')
+                self.sendgrid_api_key = os.environ.get('SENDGRID_API_KEY')
                 
-                if self.smtp_user and self.smtp_password:
-                    self.smtp_enabled = True
-                    logger.info("✉️  Email service initialized with SMTP")
+                if self.sendgrid_api_key:
+                    self.sg_client = SendGridAPIClient(self.sendgrid_api_key)
+                    self.sendgrid_enabled = True
+                    logger.info("✉️  Email service initialized with SendGrid")
                 else:
-                    logger.warning("⚠️  SMTP credentials missing, using mock email service")
+                    logger.warning("⚠️  SendGrid API key missing, using mock email service")
             except ImportError:
-                logger.warning("⚠️  SMTP libraries not available, using mock email service")
+                logger.warning("⚠️  SendGrid library not available, using mock email service")
+            except Exception as e:
+                logger.warning(f"⚠️  SendGrid initialization failed: {str(e)}, using mock email service")
         else:
             logger.info("📧  Email service initialized in MOCK mode (console logging)")
     
@@ -105,35 +104,33 @@ This is an automated email. Please do not reply to this message.
 For support, please use the contact methods mentioned above.
         """
         
-        if self.smtp_enabled:
-            # Send real email via SMTP
-            return await self._send_smtp_email(to_email, subject, email_body)
+        if self.sendgrid_enabled:
+            # Send real email via SendGrid
+            return await self._send_sendgrid_email(to_email, subject, email_body)
         else:
             # Mock mode - log to console
             return self._send_mock_email(to_email, subject, email_body)
     
-    async def _send_smtp_email(self, to_email: str, subject: str, body: str) -> bool:
-        """Send email via SMTP"""
+    async def _send_sendgrid_email(self, to_email: str, subject: str, body: str) -> bool:
+        """Send email via SendGrid"""
         try:
-            import smtplib
-            from email.mime.text import MIMEText
-            from email.mime.multipart import MIMEMultipart
+            from sendgrid.helpers.mail import Mail, Email, To, Content
             
             # Create message
-            message = MIMEMultipart()
-            message['From'] = self.from_email
-            message['To'] = to_email
-            message['Subject'] = subject
-            message.attach(MIMEText(body, 'plain'))
+            from_email = Email(self.from_email)
+            to_email_obj = To(to_email)
+            content = Content("text/plain", body)
+            mail = Mail(from_email, to_email_obj, subject, content)
             
             # Send email
-            with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
-                server.starttls()
-                server.login(self.smtp_user, self.smtp_password)
-                server.send_message(message)
+            response = self.sg_client.send(mail)
             
-            logger.info(f"✅ Email sent successfully to {to_email}")
-            return True
+            if response.status_code in [200, 201, 202]:
+                logger.info(f"✅ Email sent successfully to {to_email} (Status: {response.status_code})")
+                return True
+            else:
+                logger.error(f"❌ Failed to send email to {to_email} (Status: {response.status_code})")
+                return False
             
         except Exception as e:
             logger.error(f"❌ Failed to send email to {to_email}: {str(e)}")
@@ -186,8 +183,8 @@ Best regards,
 The Organ Connect Team
         """
         
-        if self.smtp_enabled:
-            return await self._send_smtp_email(to_email, subject, email_body)
+        if self.sendgrid_enabled:
+            return await self._send_sendgrid_email(to_email, subject, email_body)
         else:
             return self._send_mock_email(to_email, subject, email_body)
     
@@ -275,8 +272,8 @@ This is an automated email. Please do not reply to this message.
 For support, please use the contact methods mentioned above.
         """
         
-        if self.smtp_enabled:
-            return await self._send_smtp_email(to_email, subject, email_body)
+        if self.sendgrid_enabled:
+            return await self._send_sendgrid_email(to_email, subject, email_body)
         else:
             return self._send_mock_email(to_email, subject, email_body)
     async def send_donor_eligibility_notification(
@@ -392,8 +389,8 @@ This is an automated email. Please do not reply to this message.
 For questions, visit: {os.environ.get('FRONTEND_URL', 'https://organconnect.com')}/support
             """
         
-        if self.smtp_enabled:
-            return await self._send_smtp_email(to_email, subject, email_body)
+        if self.sendgrid_enabled:
+            return await self._send_sendgrid_email(to_email, subject, email_body)
         else:
             return self._send_mock_email(to_email, subject, email_body)
 
