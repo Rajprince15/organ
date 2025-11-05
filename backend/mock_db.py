@@ -438,7 +438,9 @@ def seed_mock_data(db: MockDatabase):
         doc_id = user['id']
         db.users._data[doc_id] = user.copy()
     
-    # Create multiple sample donation applications with approved status
+    # Create multiple sample donation applications with mixed statuses
+    # Active donors = eligible and have reports
+    # Approved donors = awaiting eligibility checkup
     sample_donations = [
         {
             "id": str(uuid.uuid4()),
@@ -454,7 +456,9 @@ def seed_mock_data(db: MockDatabase):
             "state": "New York",
             "country": "USA",
             "consent": True,
-            "status": "approved",
+            "status": "active",
+            "checkup_status": "eligible",
+            "eligibility_report_url": "/api/uploads/reports/donor_1_eligibility_report.pdf",
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow()
         },
@@ -472,7 +476,9 @@ def seed_mock_data(db: MockDatabase):
             "state": "California",
             "country": "USA",
             "consent": True,
-            "status": "approved",
+            "status": "active",
+            "checkup_status": "eligible",
+            "eligibility_report_url": "/api/uploads/reports/donor_2_eligibility_report.pdf",
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow()
         },
@@ -490,7 +496,9 @@ def seed_mock_data(db: MockDatabase):
             "state": "Illinois",
             "country": "USA",
             "consent": True,
-            "status": "approved",
+            "status": "active",
+            "checkup_status": "eligible",
+            "eligibility_report_url": "/api/uploads/reports/donor_3_eligibility_report.pdf",
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow()
         },
@@ -508,7 +516,9 @@ def seed_mock_data(db: MockDatabase):
             "state": "Texas",
             "country": "USA",
             "consent": True,
-            "status": "approved",
+            "status": "active",
+            "checkup_status": "eligible",
+            "eligibility_report_url": "/api/uploads/reports/donor_4_eligibility_report.pdf",
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow()
         },
@@ -526,7 +536,9 @@ def seed_mock_data(db: MockDatabase):
             "state": "Arizona",
             "country": "USA",
             "consent": True,
-            "status": "approved",
+            "status": "active",
+            "checkup_status": "eligible",
+            "eligibility_report_url": "/api/uploads/reports/donor_5_eligibility_report.pdf",
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow()
         },
@@ -544,7 +556,9 @@ def seed_mock_data(db: MockDatabase):
             "state": "Pennsylvania",
             "country": "USA",
             "consent": True,
-            "status": "approved",
+            "status": "active",
+            "checkup_status": "eligible",
+            "eligibility_report_url": "/api/uploads/reports/donor_6_eligibility_report.pdf",
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow()
         },
@@ -562,7 +576,9 @@ def seed_mock_data(db: MockDatabase):
             "state": "Texas",
             "country": "USA",
             "consent": True,
-            "status": "approved",
+            "status": "active",
+            "checkup_status": "eligible",
+            "eligibility_report_url": "/api/uploads/reports/donor_7_eligibility_report.pdf",
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow()
         },
@@ -581,6 +597,7 @@ def seed_mock_data(db: MockDatabase):
             "country": "USA",
             "consent": True,
             "status": "approved",
+            "checkup_status": "pending_checkup",
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow()
         },

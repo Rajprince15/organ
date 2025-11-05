@@ -207,7 +207,7 @@ export default function DonationApplications() {
     <div className="min-h-screen flex flex-col bg-gray-50">
       <Navigation />
       
-      <main className="flex-1 container mx-auto px-4 py-8">
+      <main className="flex-1 container mx-auto px-4 pt-24 pb-8 lg:pt-32">
         <div className="max-w-7xl mx-auto space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between">
@@ -273,9 +273,9 @@ export default function DonationApplications() {
           {/* Applications List */}
           <Card>
             <CardHeader>
-              <CardTitle>Applications Requiring Attention</CardTitle>
+              <CardTitle>All Donation Applications</CardTitle>
               <CardDescription>
-                Applications that are pending approval or marked as not eligible
+                Review and manage all registered donor applications
               </CardDescription>
             </CardHeader>
             <CardContent>
