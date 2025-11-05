@@ -36,11 +36,12 @@ const Login = () => {
     }
   };
 
-  const fillDemoCredentials = (role: 'donor' | 'hospital' | 'admin') => {
+  const fillDemoCredentials = (role: 'donor' | 'hospital' | 'admin' | 'branch_hospital') => {
     const credentials = {
       donor: { email: 'donor@organconnect.com', password: 'donor123' },
       hospital: { email: 'hospital@organconnect.com', password: 'hospital123' },
-      admin: { email: 'admin@organconnect.com', password: 'admin123' }
+      admin: { email: 'admin@organconnect.com', password: 'admin123' },
+      branch_hospital: { email: 'branch.downtown@organconnect.com', password: 'branch123' }
     };
     setEmail(credentials[role].email);
     setPassword(credentials[role].password);
@@ -127,7 +128,7 @@ const Login = () => {
             <p className="text-sm text-muted-foreground text-center mb-3">
               Quick login with demo credentials:
             </p>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <Button
                 type="button"
                 variant="outline"
@@ -145,6 +146,15 @@ const Login = () => {
                 className="text-xs"
               >
                 Hospital
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fillDemoCredentials('branch_hospital')}
+                className="text-xs"
+              >
+                Branch Hospital
               </Button>
               <Button
                 type="button"
