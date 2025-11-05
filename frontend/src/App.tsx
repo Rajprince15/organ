@@ -39,6 +39,7 @@ import ActivityPage from "./pages/admin/ActivityPage";
 import AuditPage from "./pages/admin/AuditPage";
 import BroadcastPage from "./pages/admin/BroadcastPage";
 import SettingsPage from "./pages/admin/SettingsPage";
+import BranchHospitalManagement from "./pages/admin/BranchHospitalManagement";
 
 const queryClient = new QueryClient();
 
@@ -71,6 +72,7 @@ const App = () => (
             <Route path="/admin/users" element={<UsersPage />} />
             <Route path="/admin/donations" element={<DonationsPage />} />
             <Route path="/admin/requirements" element={<RequirementsPage />} />
+            <Route path="/admin/branch-hospitals" element={<BranchHospitalManagement />} />
             <Route path="/admin/matching" element={<MatchingPage />} />
             <Route path="/admin/support" element={<SupportPage />} />
             <Route path="/admin/community" element={<CommunityPage />} />

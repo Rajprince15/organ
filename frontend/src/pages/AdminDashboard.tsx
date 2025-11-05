@@ -120,6 +120,14 @@ export default function AdminDashboard() {
       stat: stats ? `${stats.requirements.active} Active` : "",
     },
     {
+      title: "Branch Hospitals",
+      description: "Manage branch hospital accounts and credentials",
+      icon: Building2,
+      color: "from-blue-500 to-cyan-600",
+      route: "/admin/branch-hospitals",
+      stat: "Manage Branch Accounts",
+    },
+    {
       title: "Matching Insights",
       description: "Algorithm performance and match logs",
       icon: GitCompare,
