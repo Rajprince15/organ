@@ -70,7 +70,7 @@ export default function BranchHospitalDashboard() {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL || process.env.REACT_APP_BACKEND_URL}/api/branch-hospital/dashboard-stats`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/branch-hospital/dashboard-stats`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -88,7 +88,7 @@ export default function BranchHospitalDashboard() {
   const fetchDonors = async (status?: string) => {
     try {
       setLoading(true);
-      const url = new URL(`${import.meta.env.VITE_BACKEND_URL || process.env.REACT_APP_BACKEND_URL}/api/branch-hospital/assigned-donors`);
+      const url = new URL(`${import.meta.env.VITE_API_URL}/api/branch-hospital/assigned-donors`);
       if (status) {
         url.searchParams.append('status', status);
       }
@@ -161,7 +161,7 @@ export default function BranchHospitalDashboard() {
       formData.append('file', file);
 
       const response = await fetch(
-        `${import.meta.env.VITE_BACKEND_URL || process.env.REACT_APP_BACKEND_URL}/api/branch-hospital/donors/${donorId}/upload-report`,
+        `${import.meta.env.VITE_API_URL}/api/branch-hospital/donors/${donorId}/upload-report`,
         {
           method: 'POST',
           headers: {
@@ -201,7 +201,7 @@ export default function BranchHospitalDashboard() {
   const handleMarkEligibility = async (donorId: string, status: 'eligible' | 'not_eligible') => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_BACKEND_URL || process.env.REACT_APP_BACKEND_URL}/api/branch-hospital/donors/${donorId}/mark-eligibility`,
+        `${import.meta.env.VITE_API_URL}/api/branch-hospital/donors/${donorId}/mark-eligibility`,
         {
           method: 'PUT',
           headers: {
@@ -421,7 +421,7 @@ export default function BranchHospitalDashboard() {
                               {donor.eligibility_report_url && (
                                 <div className="mt-3">
                                   <a
-                                    href={`${import.meta.env.VITE_BACKEND_URL || process.env.REACT_APP_BACKEND_URL}${donor.eligibility_report_url}`}
+                                    href={`${import.meta.env.VITE_API_URL}${donor.eligibility_report_url}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="text-blue-600 hover:underline text-sm flex items-center"
