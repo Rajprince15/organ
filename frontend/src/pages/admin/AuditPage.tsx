@@ -34,7 +34,7 @@ export default function AuditPage() {
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100">
       <Navigation />
       
-      <main className="flex-1 container mx-auto px-4 py-8 pt-20 lg:pt-28">
+      <main className="flex-1 container mx-auto px-4 pt-24 pb-8 lg:pt-32 lg:pb-16">
         <div className="max-w-7xl mx-auto space-y-6">
           <div className="flex items-center gap-4">
             <Button 
