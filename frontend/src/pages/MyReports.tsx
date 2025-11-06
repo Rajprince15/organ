@@ -273,7 +273,8 @@ const MyReports = () => {
           )}
 
           {/* Report Download Section */}
-          {application.eligibility_report_url ? (
+          {application.eligibility_report_url && 
+           (application.checkup_status === "eligible" || application.checkup_status === "not_eligible") ? (
             <Card className="p-8">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">

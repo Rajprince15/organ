@@ -25,7 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Search, Edit, Trash2, UserCog, Download } from "lucide-react";
+import { Search, Edit, Trash2, UserCog, Download, Eye, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -40,6 +40,13 @@ interface User {
   created_at: string;
 }
 
+interface DonorApplication {
+  id: string;
+  donor_id: string;
+  checkup_status?: string;
+  eligibility_report_url?: string;
+}
+
 interface UserManagementTabProps {
   token: string;
 }
@@ -48,12 +55,16 @@ export const UserManagementTab = ({ token }: UserManagementTabProps) => {
   const { toast } = useToast();
   const [users, setUsers] = useState<User[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
+  const [donorApplications, setDonorApplications] = useState<Map<string, DonorApplication>>(new Map());
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [checkupStatusFilter, setCheckupStatusFilter] = useState<string>("all");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showReportDialog, setShowReportDialog] = useState(false);
+  const [selectedReport, setSelectedReport] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -61,7 +72,7 @@ export const UserManagementTab = ({ token }: UserManagementTabProps) => {
 
   useEffect(() => {
     filterUsers();
-  }, [users, searchTerm, roleFilter, statusFilter]);
+  }, [users, searchTerm, roleFilter, statusFilter, checkupStatusFilter]);
 
   const fetchUsers = async () => {
     try {
@@ -71,6 +82,19 @@ export const UserManagementTab = ({ token }: UserManagementTabProps) => {
       if (response.ok) {
         const data = await response.json();
         setUsers(data.users);
+        
+        // Fetch donation applications for all donors
+        const donorApplicationsResponse = await fetch(`${API_URL}/api/admin/donation-applications?limit=1000`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (donorApplicationsResponse.ok) {
+          const appData = await donorApplicationsResponse.json();
+          const appMap = new Map<string, DonorApplication>();
+          appData.applications.forEach((app: DonorApplication) => {
+            appMap.set(app.donor_id, app);
+          });
+          setDonorApplications(appMap);
+        }
       }
     } catch (error) {
       toast({ title: "Failed to fetch users", variant: "destructive" });
@@ -100,6 +124,15 @@ export const UserManagementTab = ({ token }: UserManagementTabProps) => {
       filtered = filtered.filter(user =>
         statusFilter === "active" ? user.is_active : !user.is_active
       );
+    }
+
+    // Checkup status filter (only for donors)
+    if (checkupStatusFilter !== "all") {
+      filtered = filtered.filter(user => {
+        if (user.role !== "donor") return false;
+        const app = donorApplications.get(user.id);
+        return app && app.checkup_status === checkupStatusFilter;
+      });
     }
 
     setFilteredUsers(filtered);
@@ -211,6 +244,20 @@ export const UserManagementTab = ({ token }: UserManagementTabProps) => {
             </SelectContent>
           </Select>
 
+          <Select value={checkupStatusFilter} onValueChange={setCheckupStatusFilter}>
+            <SelectTrigger className="w-48" data-testid="checkup-status-filter">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Checkup Status</SelectItem>
+              <SelectItem value="pending_checkup">Pending Checkup</SelectItem>
+              <SelectItem value="eligible">Eligible</SelectItem>
+              <SelectItem value="not_eligible">Not Eligible</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="none">None</SelectItem>
+            </SelectContent>
+          </Select>
+
           <Button variant="outline" onClick={exportUsers} data-testid="export-users-btn">
             <Download className="h-4 w-4 mr-2" />
             Export
@@ -233,12 +280,18 @@ export const UserManagementTab = ({ token }: UserManagementTabProps) => {
               <TableHead>Role</TableHead>
               <TableHead>Mobile</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Checkup Status</TableHead>
               <TableHead>Registered</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredUsers.map((user) => (
+            {filteredUsers.map((user) => {
+              const donorApp = user.role === "donor" ? donorApplications.get(user.id) : null;
+              const hasReport = donorApp?.eligibility_report_url && 
+                               (donorApp?.checkup_status === "eligible" || donorApp?.checkup_status === "not_eligible");
+              
+              return (
               <TableRow key={user.id}>
                 <TableCell className="font-medium">{user.name}</TableCell>
                 <TableCell>{user.email}</TableCell>
@@ -257,10 +310,38 @@ export const UserManagementTab = ({ token }: UserManagementTabProps) => {
                   </Badge>
                 </TableCell>
                 <TableCell>
+                  {user.role === "donor" && donorApp ? (
+                    <Badge 
+                      variant={
+                        donorApp.checkup_status === "eligible" ? "default" : 
+                        donorApp.checkup_status === "not_eligible" ? "destructive" :
+                        "outline"
+                      }
+                    >
+                      {donorApp.checkup_status?.replace(/_/g, ' ') || 'none'}
+                    </Badge>
+                  ) : (
+                    <span className="text-muted-foreground text-sm">N/A</span>
+                  )}
+                </TableCell>
+                <TableCell>
                   {new Date(user.created_at).toLocaleDateString()}
                 </TableCell>
                 <TableCell>
                   <div className="flex gap-2">
+                    {hasReport && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedReport(donorApp.eligibility_report_url!);
+                          setShowReportDialog(true);
+                        }}
+                        data-testid={`view-report-${user.id}`}
+                      >
+                        <FileText className="h-3 w-3" />
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="outline"
@@ -283,7 +364,7 @@ export const UserManagementTab = ({ token }: UserManagementTabProps) => {
                   </div>
                 </TableCell>
               </TableRow>
-            ))}
+            )})}
           </TableBody>
         </Table>
       </div>
@@ -303,6 +384,36 @@ export const UserManagementTab = ({ token }: UserManagementTabProps) => {
             </Button>
             <Button variant="destructive" onClick={handleDeleteUser}>
               Delete User
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Report Viewing Dialog */}
+      <Dialog open={showReportDialog} onOpenChange={setShowReportDialog}>
+        <DialogContent className="max-w-4xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Eligibility Report</DialogTitle>
+          </DialogHeader>
+          {selectedReport && (
+            <div className="space-y-4">
+              <Button
+                variant="outline"
+                onClick={() => window.open(`${API_URL}${selectedReport}`, '_blank')}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download Report
+              </Button>
+              <iframe
+                src={`${API_URL}${selectedReport}`}
+                className="w-full h-[60vh] border rounded"
+                title="Eligibility Report"
+              />
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowReportDialog(false)}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>

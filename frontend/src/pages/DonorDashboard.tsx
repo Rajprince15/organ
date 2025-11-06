@@ -468,8 +468,10 @@ const DonorDashboard = () => {
                   <Heart className="h-6 w-6 text-red-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Potential Lives Saved</p>
-                  <p className="text-3xl font-bold text-red-600">{potentialLives}</p>
+                  <p className="text-sm text-muted-foreground">Eligibility Status</p>
+                  <p className="text-xl font-bold text-red-600 capitalize">
+                    {application.checkup_status ? application.checkup_status.replace(/_/g, ' ') : 'Not Available'}
+                  </p>
                 </div>
               </div>
               <p className="text-xs text-muted-foreground mt-3">
@@ -564,9 +566,10 @@ const DonorDashboard = () => {
                     My Reports
                   </h3>
                   <p className="text-sm text-blue-700">
-                    {application.eligibility_report_url 
-                      ? 'View and download your eligibility report'
-                      : 'Your checkup reports will appear here'}
+                    {application.eligibility_report_url && 
+                     (application.checkup_status === "eligible" || application.checkup_status === "not_eligible")
+                      ? 'Report available - View and download your eligibility report'
+                      : 'Your checkup reports will appear here once checkup is completed'}
                   </p>
                 </div>
               </div>
@@ -621,8 +624,11 @@ const DonorDashboard = () => {
             </div>
           </Card>
 
-          {/* Branch Hospital Checkup Card */}
-          {application.checkup_status && application.checkup_status !== "none" && branchHospital && (
+          {/* Branch Hospital Checkup Card - Only show if not eligible yet */}
+          {application.checkup_status && 
+           application.checkup_status !== "none" && 
+           application.checkup_status !== "eligible" && 
+           branchHospital && (
             <Card className="p-6 mb-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200" data-testid="branch-hospital-card">
               <div className="space-y-4">
                 <div className="flex items-start justify-between">
