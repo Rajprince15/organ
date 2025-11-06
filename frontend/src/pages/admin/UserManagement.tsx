@@ -228,21 +228,40 @@ export default function UserManagement() {
         body: JSON.stringify({ status: newStatus }),
       });
 
-      if (!response.ok) throw new Error("Failed to update status");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to update status");
+      }
 
+      const result = await response.json();
+      
       toast({
         title: "Success",
-        description: `Donor status updated to ${newStatus}`,
+        description: result.message || `Donor status updated to ${newStatus}`,
       });
 
-      // Refresh donor details
-      viewUserDetails(selectedUser!);
-      fetchUsers();
+      // Update local donor details immediately
+      setDonorDetails({...donorDetails, status: newStatus});
+      
+      // Refresh all data
+      await fetchUsers();
+      
+      // Refresh donor details in dialog
+      if (selectedUser) {
+        const token = localStorage.getItem("token");
+        const detailsResponse = await fetch(`${API_URL}/api/admin/donors/${selectedUser.id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (detailsResponse.ok) {
+          const data = await detailsResponse.json();
+          setDonorDetails(data.donor);
+        }
+      }
     } catch (error) {
       console.error("Failed to update status:", error);
       toast({
         title: "Error",
-        description: "Failed to update donor status",
+        description: error instanceof Error ? error.message : "Failed to update donor status",
         variant: "destructive",
       });
     }
@@ -417,7 +436,15 @@ export default function UserManagement() {
                             <Badge className={getRoleBadgeColor(u.role)}>
                               {u.role.replace("_", " ").toUpperCase()}
                             </Badge>
-                            {!u.is_active && (
+                            {u.role === "donor" && (
+                              <Badge 
+                                variant="outline" 
+                                className={u.is_active ? "bg-green-50 text-green-700" : "bg-gray-50 text-gray-700"}
+                              >
+                                {u.is_active ? "Active - Eligible" : "Inactive - Not Eligible"}
+                              </Badge>
+                            )}
+                            {u.role !== "donor" && !u.is_active && (
                               <Badge variant="outline" className="bg-red-50 text-red-700">
                                 Inactive
                               </Badge>
