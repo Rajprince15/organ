@@ -75,12 +75,14 @@ export default function DonationApplications() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [applications, setApplications] = useState<DonationApplication[]>([]);
+  const [filteredApplications, setFilteredApplications] = useState<DonationApplication[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDonor, setSelectedDonor] = useState<DonationApplication | null>(null);
   const [branchHospital, setBranchHospital] = useState<BranchHospital | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [newStatus, setNewStatus] = useState<string>("");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
 
   useEffect(() => {
     if (!user || user.role !== "admin") {
@@ -102,6 +104,7 @@ export default function DonationApplications() {
 
       const data = await response.json();
       setApplications(data.applications);
+      setFilteredApplications(data.applications);
     } catch (error) {
       console.error("Failed to load applications:", error);
       toast({
@@ -111,6 +114,20 @@ export default function DonationApplications() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const applyFilter = (status: string) => {
+    setFilterStatus(status);
+    
+    if (status === "all") {
+      setFilteredApplications(applications);
+    } else if (status === "eligible") {
+      setFilteredApplications(applications.filter(app => app.checkup_status === "eligible"));
+    } else if (status === "not_eligible") {
+      setFilteredApplications(applications.filter(app => app.checkup_status === "not_eligible"));
+    } else if (status === "pending_checkup") {
+      setFilteredApplications(applications.filter(app => app.checkup_status === "pending_checkup"));
     }
   };
 
@@ -219,18 +236,31 @@ export default function DonationApplications() {
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">Donation Applications</h1>
                 <p className="text-gray-600 mt-1">
-                  Review pending and not eligible donor applications
+                  Review and manage all donor applications
                 </p>
               </div>
             </div>
-            <Button onClick={fetchApplications} variant="outline" data-testid="refresh-applications-btn">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
-            </Button>
+            <div className="flex items-center gap-3">
+              <Select value={filterStatus} onValueChange={applyFilter}>
+                <SelectTrigger className="w-[200px]" data-testid="filter-select">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Applications</SelectItem>
+                  <SelectItem value="eligible">Eligible Only</SelectItem>
+                  <SelectItem value="not_eligible">Not Eligible Only</SelectItem>
+                  <SelectItem value="pending_checkup">Pending Checkup</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button onClick={fetchApplications} variant="outline" data-testid="refresh-applications-btn">
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
+              </Button>
+            </div>
           </div>
 
           {/* Summary Cards */}
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-4">
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
@@ -246,12 +276,12 @@ export default function DonationApplications() {
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Pending Review</p>
+                    <p className="text-sm font-medium text-gray-600">Eligible</p>
                     <p className="text-2xl font-bold">
-                      {applications.filter(a => a.status === "pending").length}
+                      {applications.filter(a => a.checkup_status === "eligible").length}
                     </p>
                   </div>
-                  <FileText className="h-8 w-8 text-yellow-500" />
+                  <CheckCircle className="h-8 w-8 text-green-500" />
                 </div>
               </CardContent>
             </Card>
@@ -268,6 +298,19 @@ export default function DonationApplications() {
                 </div>
               </CardContent>
             </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Pending Checkup</p>
+                    <p className="text-2xl font-bold">
+                      {applications.filter(a => a.checkup_status === "pending_checkup").length}
+                    </p>
+                  </div>
+                  <FileText className="h-8 w-8 text-yellow-500" />
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Applications List */}
@@ -281,13 +324,13 @@ export default function DonationApplications() {
             <CardContent>
               {loading ? (
                 <div className="text-center py-8 text-gray-500">Loading applications...</div>
-              ) : applications.length === 0 ? (
+              ) : filteredApplications.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
-                  No applications requiring attention
+                  No applications found for selected filter
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {applications.map((app) => (
+                  {filteredApplications.map((app) => (
                     <div
                       key={app.id}
                       className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
