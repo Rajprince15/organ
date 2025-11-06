@@ -23,6 +23,7 @@ from models import (
     Resource, ResourceCreate, ResourceUpdate,
     MatchLog, AlgorithmConfig, AlgorithmConfigUpdate,
     BranchHospital, BranchHospitalCreate, BranchHospitalUpdate, BranchHospitalResponse,
+    OrganBankEntry, OrganBankEntryCreate, OrganBankEntryUpdate,
     User
 )
 from auth_utils import get_current_user
@@ -3655,6 +3656,428 @@ async def delete_help_document(
     )
     
     return {"message": "Help document deleted successfully"}
+
+
+# ============================================
+# ORGAN BANK ROUTES - Shared Organ Inventory System
+# ============================================
+
+# Hospital Organ Bank Routes
+@api_router.post("/organ-bank", response_model=OrganBankEntry)
+async def create_organ_bank_entry(
+    entry: OrganBankEntryCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new organ bank entry (Hospital only)"""
+    if current_user.get("role") != "hospital":
+        raise HTTPException(status_code=403, detail="Only hospitals can manage organ bank")
+    
+    # Get hospital name
+    hospital = await db.users.find_one({"id": current_user["id"]})
+    hospital_name = hospital.get("name", "Unknown Hospital") if hospital else "Unknown Hospital"
+    
+    # Create entry
+    entry_dict = entry.model_dump()
+    entry_dict["hospital_id"] = current_user["id"]
+    entry_dict["hospital_name"] = hospital_name
+    
+    entry_obj = OrganBankEntry(**entry_dict)
+    await db.organ_bank_entries.insert_one(entry_obj.model_dump())
+    
+    return entry_obj
+
+@api_router.get("/organ-bank/me", response_model=List[OrganBankEntry])
+async def get_my_organ_bank(
+    current_user: dict = Depends(get_current_user)
+):
+    """Get current hospital's organ bank entries"""
+    if current_user.get("role") != "hospital":
+        raise HTTPException(status_code=403, detail="Only hospitals can access organ bank")
+    
+    entries = await db.organ_bank_entries.find({"hospital_id": current_user["id"]}).sort("created_at", -1).to_list(1000)
+    return [OrganBankEntry(**entry) for entry in entries]
+
+@api_router.put("/organ-bank/{entry_id}", response_model=OrganBankEntry)
+async def update_organ_bank_entry(
+    entry_id: str,
+    updates: OrganBankEntryUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update an organ bank entry (Hospital only)"""
+    if current_user.get("role") != "hospital":
+        raise HTTPException(status_code=403, detail="Only hospitals can manage organ bank")
+    
+    # Check if entry exists and belongs to hospital
+    entry = await db.organ_bank_entries.find_one({"id": entry_id, "hospital_id": current_user["id"]})
+    if not entry:
+        raise HTTPException(status_code=404, detail="Organ bank entry not found")
+    
+    # Update only provided fields
+    update_dict = {k: v for k, v in updates.model_dump().items() if v is not None}
+    update_dict["updated_at"] = datetime.utcnow()
+    
+    result = await db.organ_bank_entries.update_one(
+        {"id": entry_id},
+        {"$set": update_dict}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Failed to update entry")
+    
+    # Fetch and return updated entry
+    updated_entry = await db.organ_bank_entries.find_one({"id": entry_id})
+    return OrganBankEntry(**updated_entry)
+
+@api_router.delete("/organ-bank/{entry_id}")
+async def delete_organ_bank_entry(
+    entry_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete an organ bank entry (Hospital only)"""
+    if current_user.get("role") != "hospital":
+        raise HTTPException(status_code=403, detail="Only hospitals can manage organ bank")
+    
+    # Check if entry exists and belongs to hospital
+    entry = await db.organ_bank_entries.find_one({"id": entry_id, "hospital_id": current_user["id"]})
+    if not entry:
+        raise HTTPException(status_code=404, detail="Organ bank entry not found")
+    
+    result = await db.organ_bank_entries.delete_one({"id": entry_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Failed to delete entry")
+    
+    return {"message": "Organ bank entry deleted successfully"}
+
+@api_router.put("/organ-bank/toggle-sharing")
+async def toggle_organ_bank_sharing(
+    current_user: dict = Depends(get_current_user)
+):
+    """Toggle organ bank sharing status (Hospital only)"""
+    if current_user.get("role") != "hospital":
+        raise HTTPException(status_code=403, detail="Only hospitals can toggle sharing")
+    
+    # Get current sharing status
+    hospital = await db.users.find_one({"id": current_user["id"]})
+    if not hospital:
+        raise HTTPException(status_code=404, detail="Hospital not found")
+    
+    current_sharing = hospital.get("is_sharing_organ_bank", False)
+    new_sharing = not current_sharing
+    
+    # Update sharing status
+    await db.users.update_one(
+        {"id": current_user["id"]},
+        {"$set": {"is_sharing_organ_bank": new_sharing, "updated_at": datetime.utcnow()}}
+    )
+    
+    return {
+        "message": f"Organ bank sharing {'enabled' if new_sharing else 'disabled'}",
+        "is_sharing": new_sharing
+    }
+
+@api_router.get("/organ-bank/sharing-status")
+async def get_sharing_status(
+    current_user: dict = Depends(get_current_user)
+):
+    """Get organ bank sharing status (Hospital only)"""
+    if current_user.get("role") != "hospital":
+        raise HTTPException(status_code=403, detail="Only hospitals can check sharing status")
+    
+    hospital = await db.users.find_one({"id": current_user["id"]})
+    if not hospital:
+        raise HTTPException(status_code=404, detail="Hospital not found")
+    
+    return {
+        "is_sharing": hospital.get("is_sharing_organ_bank", False)
+    }
+
+@api_router.get("/organ-bank/marketplace")
+async def get_organ_bank_marketplace(
+    current_user: dict = Depends(get_current_user),
+    organ_type: Optional[str] = None,
+    blood_type: Optional[str] = None,
+    status: Optional[str] = None
+):
+    """Get summarized view of all shared organ banks (Hospital role)"""
+    if current_user.get("role") != "hospital":
+        raise HTTPException(status_code=403, detail="Only hospitals can access organ marketplace")
+    
+    # Get all hospitals that are sharing
+    sharing_hospitals = await db.users.find({
+        "role": "hospital",
+        "is_sharing_organ_bank": True,
+        "id": {"$ne": current_user["id"]}  # Exclude current hospital
+    }).to_list(1000)
+    
+    if not sharing_hospitals:
+        return {
+            "entries": [],
+            "total": 0,
+            "sharing_hospitals_count": 0
+        }
+    
+    sharing_hospital_ids = [h["id"] for h in sharing_hospitals]
+    
+    # Build filter
+    filter_dict = {"hospital_id": {"$in": sharing_hospital_ids}}
+    
+    if organ_type:
+        filter_dict["organ_type"] = {"$regex": organ_type, "$options": "i"}
+    
+    if blood_type:
+        filter_dict["blood_type"] = blood_type
+    
+    if status:
+        filter_dict["status"] = status
+    
+    # Get all shared organ bank entries
+    entries = await db.organ_bank_entries.find(filter_dict).sort("created_at", -1).to_list(10000)
+    
+    return {
+        "entries": [OrganBankEntry(**entry) for entry in entries],
+        "total": len(entries),
+        "sharing_hospitals_count": len(sharing_hospital_ids)
+    }
+
+# Admin Organ Inventory Routes
+@api_router.get("/admin/organ-inventory")
+async def get_organ_inventory(
+    current_user: dict = Depends(get_current_user),
+    organ_type: Optional[str] = None,
+    hospital_id: Optional[str] = None,
+    blood_type: Optional[str] = None,
+    status: Optional[str] = None,
+    page: int = 1,
+    limit: int = 50
+):
+    """Get consolidated organ inventory from all sharing hospitals (Admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Get all hospitals that are sharing
+    sharing_hospitals = await db.users.find({
+        "role": "hospital",
+        "is_sharing_organ_bank": True
+    }).to_list(1000)
+    
+    if not sharing_hospitals:
+        return {
+            "entries": [],
+            "total": 0,
+            "page": page,
+            "limit": limit,
+            "total_pages": 0,
+            "sharing_hospitals_count": 0
+        }
+    
+    sharing_hospital_ids = [h["id"] for h in sharing_hospitals]
+    
+    # Build filter
+    filter_dict = {"hospital_id": {"$in": sharing_hospital_ids}}
+    
+    if organ_type:
+        filter_dict["organ_type"] = {"$regex": organ_type, "$options": "i"}
+    
+    if hospital_id:
+        filter_dict["hospital_id"] = hospital_id
+    
+    if blood_type:
+        filter_dict["blood_type"] = blood_type
+    
+    if status:
+        filter_dict["status"] = status
+    
+    # Get all entries
+    all_entries = await db.organ_bank_entries.find(filter_dict).sort("updated_at", -1).to_list(10000)
+    
+    # Pagination
+    total = len(all_entries)
+    start_idx = (page - 1) * limit
+    end_idx = start_idx + limit
+    paginated_entries = all_entries[start_idx:end_idx]
+    
+    return {
+        "entries": [OrganBankEntry(**entry) for entry in paginated_entries],
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "total_pages": (total + limit - 1) // limit if total > 0 else 0,
+        "sharing_hospitals_count": len(sharing_hospital_ids)
+    }
+
+@api_router.get("/admin/organ-inventory/stats")
+async def get_organ_inventory_stats(
+    current_user: dict = Depends(get_current_user)
+):
+    """Get organ inventory statistics (Admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Get all hospitals that are sharing
+    all_hospitals = await db.users.find({"role": "hospital"}).to_list(1000)
+    sharing_hospitals = [h for h in all_hospitals if h.get("is_sharing_organ_bank", False)]
+    sharing_hospital_ids = [h["id"] for h in sharing_hospitals]
+    
+    if not sharing_hospital_ids:
+        return {
+            "total_organs": 0,
+            "organs_by_type": {},
+            "organs_by_blood_group": {},
+            "organs_by_status": {},
+            "sharing_hospitals_count": 0,
+            "total_hospitals": len(all_hospitals),
+            "sharing_percentage": 0
+        }
+    
+    # Get all shared organ bank entries
+    all_entries = await db.organ_bank_entries.find({
+        "hospital_id": {"$in": sharing_hospital_ids}
+    }).to_list(10000)
+    
+    # Calculate statistics
+    total_organs = sum(entry.get("quantity", 0) for entry in all_entries)
+    
+    # Organs by type
+    organs_by_type = {}
+    for entry in all_entries:
+        organ_type = entry.get("organ_type", "Unknown")
+        quantity = entry.get("quantity", 0)
+        organs_by_type[organ_type] = organs_by_type.get(organ_type, 0) + quantity
+    
+    # Organs by blood group
+    organs_by_blood_group = {}
+    for entry in all_entries:
+        blood_type = entry.get("blood_type", "Unknown")
+        quantity = entry.get("quantity", 0)
+        organs_by_blood_group[blood_type] = organs_by_blood_group.get(blood_type, 0) + quantity
+    
+    # Organs by status
+    organs_by_status = {}
+    for entry in all_entries:
+        status = entry.get("status", "unknown")
+        quantity = entry.get("quantity", 0)
+        organs_by_status[status] = organs_by_status.get(status, 0) + quantity
+    
+    sharing_percentage = (len(sharing_hospital_ids) / len(all_hospitals) * 100) if len(all_hospitals) > 0 else 0
+    
+    return {
+        "total_organs": total_organs,
+        "total_entries": len(all_entries),
+        "organs_by_type": organs_by_type,
+        "organs_by_blood_group": organs_by_blood_group,
+        "organs_by_status": organs_by_status,
+        "sharing_hospitals_count": len(sharing_hospital_ids),
+        "total_hospitals": len(all_hospitals),
+        "sharing_percentage": round(sharing_percentage, 2)
+    }
+
+@api_router.get("/admin/organ-inventory/export")
+async def export_organ_inventory(
+    current_user: dict = Depends(get_current_user),
+    organ_type: Optional[str] = None,
+    hospital_id: Optional[str] = None,
+    blood_type: Optional[str] = None,
+    status: Optional[str] = None
+):
+    """Export organ inventory to CSV (Admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Get all hospitals that are sharing
+    sharing_hospitals = await db.users.find({
+        "role": "hospital",
+        "is_sharing_organ_bank": True
+    }).to_list(1000)
+    
+    if not sharing_hospitals:
+        raise HTTPException(status_code=404, detail="No hospitals are currently sharing organ banks")
+    
+    sharing_hospital_ids = [h["id"] for h in sharing_hospitals]
+    
+    # Build filter
+    filter_dict = {"hospital_id": {"$in": sharing_hospital_ids}}
+    
+    if organ_type:
+        filter_dict["organ_type"] = {"$regex": organ_type, "$options": "i"}
+    
+    if hospital_id:
+        filter_dict["hospital_id"] = hospital_id
+    
+    if blood_type:
+        filter_dict["blood_type"] = blood_type
+    
+    if status:
+        filter_dict["status"] = status
+    
+    # Get all entries
+    all_entries = await db.organ_bank_entries.find(filter_dict).sort("updated_at", -1).to_list(10000)
+    
+    # Create CSV
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Write header
+    writer.writerow([
+        "Hospital Name", "Organ Type", "Blood Type", "Quantity", 
+        "Status", "Notes", "Last Updated", "Created At"
+    ])
+    
+    # Write data
+    for entry in all_entries:
+        writer.writerow([
+            entry.get("hospital_name", ""),
+            entry.get("organ_type", ""),
+            entry.get("blood_type", ""),
+            entry.get("quantity", 0),
+            entry.get("status", ""),
+            entry.get("notes", ""),
+            entry.get("updated_at", ""),
+            entry.get("created_at", "")
+        ])
+    
+    # Return as streaming response
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=organ_inventory_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"}
+    )
+
+@api_router.get("/admin/organ-inventory/hospitals")
+async def get_sharing_hospitals_list(
+    current_user: dict = Depends(get_current_user)
+):
+    """Get list of hospitals with sharing status (Admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Get all hospitals
+    all_hospitals = await db.users.find({"role": "hospital"}).to_list(1000)
+    
+    result = []
+    for hospital in all_hospitals:
+        is_sharing = hospital.get("is_sharing_organ_bank", False)
+        
+        # Count organ bank entries for this hospital
+        entry_count = 0
+        if is_sharing:
+            entries = await db.organ_bank_entries.find({"hospital_id": hospital["id"]}).to_list(1000)
+            entry_count = len(entries)
+        
+        result.append({
+            "id": hospital["id"],
+            "name": hospital.get("name", "Unknown"),
+            "email": hospital.get("email", ""),
+            "is_sharing": is_sharing,
+            "organ_entries_count": entry_count
+        })
+    
+    return {
+        "hospitals": result,
+        "total": len(result),
+        "sharing_count": len([h for h in result if h["is_sharing"]])
+    }
 
 # Include the router in the main app
 app.include_router(api_router)

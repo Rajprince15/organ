@@ -10,7 +10,8 @@ import {
   Users, 
   FileText,
   Plus,
-  Activity
+  Activity,
+  Package
 } from "lucide-react";
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -107,7 +108,7 @@ const HospitalDashboard = () => {
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
             <Card 
               className="p-6 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100 hover:shadow-xl transition-all cursor-pointer bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200"
               onClick={() => navigate("/hospital-requirements")}
@@ -121,6 +122,22 @@ const HospitalDashboard = () => {
                   <p className="text-sm text-muted-foreground mb-1">Total Requirements</p>
                   <p className="text-2xl font-bold text-blue-700">{requirements.length}</p>
                   <p className="text-xs text-blue-600 mt-1">View Details →</p>
+                </div>
+              </div>
+            </Card>
+
+            <Card 
+              className="p-6 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-150 hover:shadow-xl transition-all cursor-pointer bg-gradient-to-br from-purple-50 to-violet-50 border-purple-200"
+              onClick={() => navigate("/organ-bank-management")}
+              data-testid="organ-bank-card"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                  <Package className="h-6 w-6 text-purple-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-muted-foreground mb-1">Organ Bank</p>
+                  <p className="text-lg font-semibold text-purple-700">Manage Inventory →</p>
                 </div>
               </div>
             </Card>

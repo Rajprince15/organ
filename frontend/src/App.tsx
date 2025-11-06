@@ -42,6 +42,9 @@ import SettingsPage from "./pages/admin/SettingsPage";
 import BranchHospitalManagement from "./pages/admin/BranchHospitalManagement";
 import BranchHospitalDashboard from "./pages/BranchHospitalDashboard";
 import MyReports from "./pages/MyReports";
+import OrganBankManagement from "./pages/OrganBankManagement";
+import OrganBankMarketplace from "./pages/OrganBankMarketplace";
+import OrganInventory from "./pages/admin/OrganInventory";
 
 const queryClient = new QueryClient();
 
@@ -67,6 +70,8 @@ const App = () => (
             <Route path="/hospital-compatible-donors" element={<HospitalCompatibleDonors />} />
             <Route path="/donor-list" element={<EnhancedDonorListPage />} />
             <Route path="/recipient-portal" element={<RecipientPortal />} />
+            <Route path="/organ-bank-management" element={<OrganBankManagement />} />
+            <Route path="/organ-bank-marketplace" element={<OrganBankMarketplace />} />
             
             {/* Branch Hospital Routes */}
             <Route path="/branch-hospital-dashboard" element={<BranchHospitalDashboard />} />
@@ -79,6 +84,7 @@ const App = () => (
             <Route path="/admin/donations" element={<DonationsPage />} />
             <Route path="/admin/requirements" element={<RequirementsPage />} />
             <Route path="/admin/branch-hospitals" element={<BranchHospitalManagement />} />
+            <Route path="/admin/organ-inventory" element={<OrganInventory />} />
             <Route path="/admin/matching" element={<MatchingPage />} />
             <Route path="/admin/support" element={<SupportPage />} />
             <Route path="/admin/community" element={<CommunityPage />} />

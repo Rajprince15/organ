@@ -506,3 +506,34 @@ class BranchHospitalResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     # Note: auto_generated_password is not included for security
+
+
+# ============================================
+# ORGAN BANK MODELS - Shared Organ Inventory System
+# ============================================
+
+class OrganBankEntry(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    hospital_id: str
+    hospital_name: str
+    organ_type: str  # Custom input field
+    blood_type: str  # A+, A-, B+, B-, AB+, AB-, O+, O-
+    quantity: int
+    status: Literal["available", "reserved", "in_transit", "allocated", "expired"] = "available"
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class OrganBankEntryCreate(BaseModel):
+    organ_type: str
+    blood_type: str
+    quantity: int
+    status: Literal["available", "reserved", "in_transit", "allocated", "expired"] = "available"
+    notes: Optional[str] = None
+
+class OrganBankEntryUpdate(BaseModel):
+    organ_type: Optional[str] = None
+    blood_type: Optional[str] = None
+    quantity: Optional[int] = None
+    status: Optional[Literal["available", "reserved", "in_transit", "allocated", "expired"]] = None
+    notes: Optional[str] = None

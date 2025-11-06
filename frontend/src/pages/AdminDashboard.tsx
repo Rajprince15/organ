@@ -21,7 +21,8 @@ import {
   Bell,
   Shield,
   FileText,
-  ArrowRight
+  ArrowRight,
+  Package
 } from "lucide-react";
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -133,7 +134,14 @@ export default function AdminDashboard() {
       route: "/admin/branch-hospitals",
       stat: "Manage Branch Accounts",
     },
-    
+    {
+      title: "Organ Inventory",
+      description: "View consolidated organ bank from all hospitals",
+      icon: Package,
+      color: "from-orange-500 to-orange-600",
+      route: "/admin/organ-inventory",
+      stat: "Shared Organ Bank System",
+    },
     {
       title: "Support Management",
       description: "Handle tickets, FAQs, and help docs",
