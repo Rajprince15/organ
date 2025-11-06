@@ -3753,7 +3753,7 @@ async def delete_organ_bank_entry(
 async def toggle_organ_bank_sharing(
     current_user: dict = Depends(get_current_user)
 ):
-    """Toggle organ bank sharing status (Hospital only)"""
+    """Toggle organ bank sharing with OTHER HOSPITALS (Hospital only) - Note: Admin always has access regardless of this setting"""
     if current_user.get("role") != "hospital":
         raise HTTPException(status_code=403, detail="Only hospitals can toggle sharing")
     
@@ -3772,7 +3772,7 @@ async def toggle_organ_bank_sharing(
     )
     
     return {
-        "message": f"Organ bank sharing {'enabled' if new_sharing else 'disabled'}",
+        "message": f"Hospital-to-hospital organ bank sharing {'enabled' if new_sharing else 'disabled'}. Note: Admin always has access to your organ bank.",
         "is_sharing": new_sharing
     }
 
@@ -3865,38 +3865,24 @@ async def get_organ_inventory(
     page: int = 1,
     limit: int = 50
 ):
-    """Get consolidated organ inventory from all sharing hospitals (Admin only)"""
+    """Get consolidated organ inventory from ALL hospitals (Admin only) - Admin sees all entries regardless of sharing status"""
     if current_user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     
-    # Get all hospitals - fetch all and filter in Python
+    # Get all hospitals
     all_hospitals = await db.users.find({"role": "hospital"}).to_list(1000)
     
-    # Filter in Python: only sharing hospitals
-    sharing_hospitals = [h for h in all_hospitals if h.get("is_sharing_organ_bank") == True]
+    # Create hospital sharing map for reference
+    hospital_sharing_map = {h["id"]: h.get("is_sharing_organ_bank", False) for h in all_hospitals}
+    sharing_hospitals_count = sum(1 for is_sharing in hospital_sharing_map.values() if is_sharing)
     
-    if not sharing_hospitals:
-        return {
-            "entries": [],
-            "total": 0,
-            "page": page,
-            "limit": limit,
-            "total_pages": 0,
-            "sharing_hospitals_count": 0
-        }
-    
-    sharing_hospital_ids = [h["id"] for h in sharing_hospitals]
-    
-    # Get ALL organ bank entries first
+    # Get ALL organ bank entries (admin sees everything)
     all_entries = await db.organ_bank_entries.find({}).to_list(10000)
     
-    # Filter in Python
+    # Filter in Python based on search criteria
     filtered_entries = []
     for entry in all_entries:
-        # Filter by hospital ID (must be in sharing hospitals)
         entry_hospital_id = entry.get("hospital_id")
-        if entry_hospital_id not in sharing_hospital_ids:
-            continue
         
         # Filter by specific hospital_id if provided
         if hospital_id and entry_hospital_id != hospital_id:
@@ -3914,6 +3900,8 @@ async def get_organ_inventory(
         if status and entry.get("status") != status:
             continue
         
+        # Add sharing status to entry for frontend reference
+        entry["is_shared_with_hospitals"] = hospital_sharing_map.get(entry_hospital_id, False)
         filtered_entries.append(entry)
     
     # Sort by updated_at descending (most recent first)
@@ -3931,65 +3919,47 @@ async def get_organ_inventory(
         "page": page,
         "limit": limit,
         "total_pages": (total + limit - 1) // limit if total > 0 else 0,
-        "sharing_hospitals_count": len(sharing_hospital_ids)
+        "sharing_hospitals_count": sharing_hospitals_count
     }
 
 @api_router.get("/admin/organ-inventory/stats")
 async def get_organ_inventory_stats(
     current_user: dict = Depends(get_current_user)
 ):
-    """Get organ inventory statistics (Admin only)"""
+    """Get organ inventory statistics from ALL hospitals (Admin only)"""
     if current_user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     
-    # Get all hospitals - fetch all and filter in Python
+    # Get all hospitals
     all_hospitals = await db.users.find({"role": "hospital"}).to_list(1000)
     
-    # Filter in Python: only sharing hospitals
+    # Count sharing hospitals
     sharing_hospitals = [h for h in all_hospitals if h.get("is_sharing_organ_bank", False)]
     sharing_hospital_ids = [h["id"] for h in sharing_hospitals]
     
-    if not sharing_hospital_ids:
-        return {
-            "total_organs": 0,
-            "total_entries": 0,
-            "organs_by_type": {},
-            "organs_by_blood_group": {},
-            "organs_by_status": {},
-            "sharing_hospitals_count": 0,
-            "total_hospitals": len(all_hospitals),
-            "sharing_percentage": 0
-        }
-    
-    # Get ALL organ bank entries first
+    # Get ALL organ bank entries (admin sees everything)
     all_organ_entries = await db.organ_bank_entries.find({}).to_list(10000)
     
-    # Filter in Python: only entries from sharing hospitals
-    shared_entries = [
-        entry for entry in all_organ_entries 
-        if entry.get("hospital_id") in sharing_hospital_ids
-    ]
-    
-    # Calculate statistics
-    total_organs = sum(entry.get("quantity", 0) for entry in shared_entries)
+    # Calculate statistics from ALL entries
+    total_organs = sum(entry.get("quantity", 0) for entry in all_organ_entries)
     
     # Organs by type
     organs_by_type = {}
-    for entry in shared_entries:
+    for entry in all_organ_entries:
         organ_type = entry.get("organ_type", "Unknown")
         quantity = entry.get("quantity", 0)
         organs_by_type[organ_type] = organs_by_type.get(organ_type, 0) + quantity
     
     # Organs by blood group
     organs_by_blood_group = {}
-    for entry in shared_entries:
+    for entry in all_organ_entries:
         blood_type = entry.get("blood_type", "Unknown")
         quantity = entry.get("quantity", 0)
         organs_by_blood_group[blood_type] = organs_by_blood_group.get(blood_type, 0) + quantity
     
     # Organs by status
     organs_by_status = {}
-    for entry in shared_entries:
+    for entry in all_organ_entries:
         status = entry.get("status", "unknown")
         quantity = entry.get("quantity", 0)
         organs_by_status[status] = organs_by_status.get(status, 0) + quantity
@@ -3998,7 +3968,7 @@ async def get_organ_inventory_stats(
     
     return {
         "total_organs": total_organs,
-        "total_entries": len(shared_entries),
+        "total_entries": len(all_organ_entries),
         "organs_by_type": organs_by_type,
         "organs_by_blood_group": organs_by_blood_group,
         "organs_by_status": organs_by_status,
@@ -4015,31 +3985,24 @@ async def export_organ_inventory(
     blood_type: Optional[str] = None,
     status: Optional[str] = None
 ):
-    """Export organ inventory to CSV (Admin only)"""
+    """Export organ inventory to CSV - Admin sees ALL entries (Admin only)"""
     if current_user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     
-    # Get all hospitals - fetch all and filter in Python
+    # Get all hospitals
     all_hospitals = await db.users.find({"role": "hospital"}).to_list(1000)
+    hospital_sharing_map = {h["id"]: h.get("is_sharing_organ_bank", False) for h in all_hospitals}
     
-    # Filter in Python: only sharing hospitals
-    sharing_hospitals = [h for h in all_hospitals if h.get("is_sharing_organ_bank") == True]
-    
-    if not sharing_hospitals:
-        raise HTTPException(status_code=404, detail="No hospitals are currently sharing organ banks")
-    
-    sharing_hospital_ids = [h["id"] for h in sharing_hospitals]
-    
-    # Get ALL organ bank entries first
+    # Get ALL organ bank entries (admin sees everything)
     all_organ_entries = await db.organ_bank_entries.find({}).to_list(10000)
     
-    # Filter in Python
+    if not all_organ_entries:
+        raise HTTPException(status_code=404, detail="No organ bank entries found")
+    
+    # Filter in Python based on search criteria
     filtered_entries = []
     for entry in all_organ_entries:
-        # Filter by hospital ID (must be in sharing hospitals)
         entry_hospital_id = entry.get("hospital_id")
-        if entry_hospital_id not in sharing_hospital_ids:
-            continue
         
         # Filter by specific hospital_id if provided
         if hospital_id and entry_hospital_id != hospital_id:
@@ -4057,6 +4020,8 @@ async def export_organ_inventory(
         if status and entry.get("status") != status:
             continue
         
+        # Add sharing status
+        entry["is_shared_with_hospitals"] = hospital_sharing_map.get(entry_hospital_id, False)
         filtered_entries.append(entry)
     
     # Sort by updated_at descending (most recent first)
@@ -4069,7 +4034,7 @@ async def export_organ_inventory(
     # Write header
     writer.writerow([
         "Hospital Name", "Organ Type", "Blood Type", "Quantity", 
-        "Status", "Notes", "Last Updated", "Created At"
+        "Status", "Shared with Hospitals", "Notes", "Last Updated", "Created At"
     ])
     
     # Write data
@@ -4080,6 +4045,7 @@ async def export_organ_inventory(
             entry.get("blood_type", ""),
             entry.get("quantity", 0),
             entry.get("status", ""),
+            "Yes" if entry.get("is_shared_with_hospitals") else "No",
             entry.get("notes", ""),
             entry.get("updated_at", ""),
             entry.get("created_at", "")
@@ -4097,7 +4063,7 @@ async def export_organ_inventory(
 async def get_sharing_hospitals_list(
     current_user: dict = Depends(get_current_user)
 ):
-    """Get list of hospitals with sharing status (Admin only)"""
+    """Get list of ALL hospitals with sharing status (Admin only)"""
     if current_user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     
@@ -4111,13 +4077,11 @@ async def get_sharing_hospitals_list(
     for hospital in all_hospitals:
         is_sharing = hospital.get("is_sharing_organ_bank", False)
         
-        # Count organ bank entries for this hospital using Python filtering
-        entry_count = 0
-        if is_sharing:
-            entry_count = len([
-                entry for entry in all_organ_entries 
-                if entry.get("hospital_id") == hospital["id"]
-            ])
+        # Count ALL organ bank entries for this hospital (admin sees all)
+        entry_count = len([
+            entry for entry in all_organ_entries 
+            if entry.get("hospital_id") == hospital["id"]
+        ])
         
         result.append({
             "id": hospital["id"],
@@ -4132,6 +4096,59 @@ async def get_sharing_hospitals_list(
         "total": len(result),
         "sharing_count": len([h for h in result if h["is_sharing"]])
     }
+
+# Admin CRUD operations for organ bank entries
+@api_router.put("/admin/organ-bank/{entry_id}", response_model=OrganBankEntry)
+async def update_organ_bank_entry_admin(
+    entry_id: str,
+    updates: OrganBankEntryUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update any organ bank entry (Admin only) - Admin has full CRUD permissions"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Check if entry exists
+    entry = await db.organ_bank_entries.find_one({"id": entry_id})
+    if not entry:
+        raise HTTPException(status_code=404, detail="Organ bank entry not found")
+    
+    # Update only provided fields
+    update_dict = {k: v for k, v in updates.model_dump().items() if v is not None}
+    update_dict["updated_at"] = datetime.utcnow()
+    
+    result = await db.organ_bank_entries.update_one(
+        {"id": entry_id},
+        {"$set": update_dict}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Failed to update entry")
+    
+    # Fetch and return updated entry
+    updated_entry = await db.organ_bank_entries.find_one({"id": entry_id})
+    return OrganBankEntry(**updated_entry)
+
+@api_router.delete("/admin/organ-bank/{entry_id}")
+async def delete_organ_bank_entry_admin(
+    entry_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete any organ bank entry (Admin only) - Admin has full CRUD permissions"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Check if entry exists
+    entry = await db.organ_bank_entries.find_one({"id": entry_id})
+    if not entry:
+        raise HTTPException(status_code=404, detail="Organ bank entry not found")
+    
+    result = await db.organ_bank_entries.delete_one({"id": entry_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Failed to delete entry")
+    
+    return {"message": "Organ bank entry deleted successfully"}
 
 # Include the router in the main app
 app.include_router(api_router)

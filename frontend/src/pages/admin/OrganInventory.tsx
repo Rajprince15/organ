@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -18,6 +19,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/contexts/AuthContext";
@@ -31,7 +40,11 @@ import {
   RefreshCw,
   TrendingUp,
   Building2,
-  ArrowLeft
+  ArrowLeft,
+  Pencil,
+  Trash2,
+  Share2,
+  ShieldCheck
 } from "lucide-react";
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -94,6 +107,18 @@ export default function OrganInventory() {
     hospital_id: "",
     blood_type: "",
     status: "",
+  });
+
+  // Edit/Delete dialog states
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [selectedEntry, setSelectedEntry] = useState<OrganBankEntry | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    organ_type: "",
+    blood_type: "",
+    quantity: 1,
+    status: "available" as "available" | "reserved" | "in_transit" | "allocated" | "expired",
+    notes: "",
   });
 
   useEffect(() => {
@@ -216,6 +241,87 @@ export default function OrganInventory() {
     }
   };
 
+  const handleEditClick = (entry: OrganBankEntry) => {
+    setSelectedEntry(entry);
+    setEditFormData({
+      organ_type: entry.organ_type,
+      blood_type: entry.blood_type,
+      quantity: entry.quantity,
+      status: entry.status,
+      notes: entry.notes || "",
+    });
+    setShowEditDialog(true);
+  };
+
+  const handleEditSubmit = async () => {
+    if (!selectedEntry) return;
+
+    try {
+      const response = await fetch(`${API_URL}/api/admin/organ-bank/${selectedEntry.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(editFormData),
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Entry updated successfully",
+        });
+        setShowEditDialog(false);
+        setSelectedEntry(null);
+        fetchInventory(currentPage);
+        fetchStats();
+      } else {
+        throw new Error("Failed to update entry");
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update entry",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteClick = (entry: OrganBankEntry) => {
+    setSelectedEntry(entry);
+    setShowDeleteDialog(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!selectedEntry) return;
+
+    try {
+      const response = await fetch(`${API_URL}/api/admin/organ-bank/${selectedEntry.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Entry deleted successfully",
+        });
+        setShowDeleteDialog(false);
+        setSelectedEntry(null);
+        fetchInventory(currentPage);
+        fetchStats();
+      } else {
+        throw new Error("Failed to delete entry");
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete entry",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const statusConfig = STATUS_OPTIONS.find(s => s.value === status);
     return statusConfig ? (
@@ -252,8 +358,12 @@ export default function OrganInventory() {
                   Organ Inventory
                 </h1>
                 <p className="text-muted-foreground">
-                  Consolidated view of organ availability across all sharing hospitals
+                  Consolidated view of ALL organ bank entries from all hospitals
                 </p>
+                <div className="mt-2 flex items-center gap-2 text-sm bg-blue-50 text-blue-700 px-3 py-2 rounded-md border border-blue-200">
+                  <ShieldCheck className="h-4 w-4" />
+                  <span className="font-medium">Admin Access: You can view and manage all organ bank entries regardless of hospital sharing settings</span>
+                </div>
               </div>
               <Button onClick={() => navigate("/admin-dashboard")} variant="outline">
                 <ArrowLeft className="h-4 w-4 mr-2" />
@@ -402,10 +512,9 @@ export default function OrganInventory() {
                       <SelectValue placeholder="All hospitals" />
                     </SelectTrigger>
                     <SelectContent>
-                     
-                      {hospitals.filter(h => h.is_sharing).map((hospital) => (
+                      {hospitals.map((hospital) => (
                         <SelectItem key={hospital.id} value={hospital.id}>
-                          {hospital.name} ({hospital.organ_entries_count})
+                          {hospital.name} ({hospital.organ_entries_count}) {hospital.is_sharing ? "🔗" : "🔒"}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -475,21 +584,23 @@ export default function OrganInventory() {
                       <TableHead className="font-bold">Blood Type</TableHead>
                       <TableHead className="font-bold">Quantity</TableHead>
                       <TableHead className="font-bold">Status</TableHead>
+                      <TableHead className="font-bold">Sharing</TableHead>
                       <TableHead className="font-bold">Notes</TableHead>
                       <TableHead className="font-bold">Last Updated</TableHead>
+                      <TableHead className="font-bold text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {loading ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8">
+                        <TableCell colSpan={9} className="text-center py-8">
                           <div className="animate-pulse text-muted-foreground">Loading...</div>
                         </TableCell>
                       </TableRow>
                     ) : entries.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                          No organ inventory data available. Hospitals need to enable sharing.
+                        <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                          No organ inventory data available yet.
                         </TableCell>
                       </TableRow>
                     ) : (
@@ -511,11 +622,44 @@ export default function OrganInventory() {
                             <span className="font-bold text-lg">{entry.quantity}</span>
                           </TableCell>
                           <TableCell>{getStatusBadge(entry.status)}</TableCell>
+                          <TableCell>
+                            {(entry as any).is_shared_with_hospitals ? (
+                              <span className="flex items-center gap-1 text-green-600 text-sm">
+                                <Share2 className="h-3 w-3" />
+                                Shared
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1 text-gray-500 text-sm">
+                                🔒 Private
+                              </span>
+                            )}
+                          </TableCell>
                           <TableCell className="max-w-xs truncate">
                             {entry.notes || <span className="text-gray-400">-</span>}
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
                             {new Date(entry.updated_at).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex gap-2 justify-end">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEditClick(entry)}
+                                data-testid={`edit-entry-${entry.id}`}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDeleteClick(entry)}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                data-testid={`delete-entry-${entry.id}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))
@@ -554,6 +698,129 @@ export default function OrganInventory() {
       </div>
 
       <Footer />
+
+      {/* Edit Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Organ Bank Entry</DialogTitle>
+            <DialogDescription>
+              Update the organ bank entry details for {selectedEntry?.hospital_name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit_organ_type">Organ Type *</Label>
+                <Input
+                  id="edit_organ_type"
+                  value={editFormData.organ_type}
+                  onChange={(e) => setEditFormData({ ...editFormData, organ_type: e.target.value })}
+                  placeholder="e.g., Heart, Kidney, Liver"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit_blood_type">Blood Type *</Label>
+                <Select
+                  value={editFormData.blood_type}
+                  onValueChange={(value) => setEditFormData({ ...editFormData, blood_type: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select blood type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BLOOD_TYPES.map((type) => (
+                      <SelectItem key={type} value={type}>{type}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit_quantity">Quantity *</Label>
+                <Input
+                  id="edit_quantity"
+                  type="number"
+                  min="1"
+                  value={editFormData.quantity}
+                  onChange={(e) => setEditFormData({ ...editFormData, quantity: parseInt(e.target.value) || 1 })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit_status">Status *</Label>
+                <Select
+                  value={editFormData.status}
+                  onValueChange={(value) => setEditFormData({ ...editFormData, status: value as any })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STATUS_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="edit_notes">Notes (Optional)</Label>
+              <Textarea
+                id="edit_notes"
+                value={editFormData.notes}
+                onChange={(e) => setEditFormData({ ...editFormData, notes: e.target.value })}
+                placeholder="Additional notes about this entry..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleEditSubmit} data-testid="confirm-edit-button">
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Organ Bank Entry</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this entry? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedEntry && (
+            <div className="py-4">
+              <div className="bg-gray-50 p-4 rounded-md space-y-2">
+                <p className="text-sm"><strong>Hospital:</strong> {selectedEntry.hospital_name}</p>
+                <p className="text-sm"><strong>Organ Type:</strong> {selectedEntry.organ_type}</p>
+                <p className="text-sm"><strong>Blood Type:</strong> {selectedEntry.blood_type}</p>
+                <p className="text-sm"><strong>Quantity:</strong> {selectedEntry.quantity}</p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleDeleteConfirm}
+              data-testid="confirm-delete-button"
+            >
+              Delete Entry
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -280,10 +280,11 @@ export default function OrganBankManagement() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Share2 className="h-5 w-5 text-blue-600" />
-                Organ Bank Sharing
+                Organ Bank Sharing with Other Hospitals
               </CardTitle>
               <CardDescription>
-                Enable sharing to make your organ inventory visible to the admin platform
+                Enable sharing to make your organ inventory visible to other hospitals in the marketplace. 
+                <strong className="text-blue-700"> Note: Admin always has access to your organ bank regardless of this setting.</strong>
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -291,15 +292,15 @@ export default function OrganBankManagement() {
                 <div>
                   <p className="font-medium">
                     Status: {isSharing ? (
-                      <span className="text-green-600">Sharing Enabled</span>
+                      <span className="text-green-600">Sharing with Hospitals Enabled</span>
                     ) : (
-                      <span className="text-gray-600">Sharing Disabled</span>
+                      <span className="text-gray-600">Sharing with Hospitals Disabled</span>
                     )}
                   </p>
                   <p className="text-sm text-muted-foreground mt-1">
                     {isSharing 
-                      ? "Your organ bank is visible to the admin and other hospitals"
-                      : "Your organ bank is private"}
+                      ? "Your organ bank is visible to other hospitals in the marketplace"
+                      : "Your organ bank is only visible to admin (not other hospitals)"}
                   </p>
                 </div>
                 <Switch
