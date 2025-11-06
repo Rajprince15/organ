@@ -29,12 +29,41 @@ const DonorRegistration = () => {
     city: "",
     state: "",
     country: "",
+    donationType: "" as "living" | "deceased" | "",
     consent: false,
   });
 
-  const organOptions = [
-    "Heart", "Lungs", "Liver", "Kidneys", "Pancreas", "Intestines", "Corneas", "Skin", "Bone", "Heart Valves"
+  // All organs for deceased donation
+  const allOrganOptions = [
+    "Heart", 
+    "Lungs", 
+    "Liver", 
+    "Kidneys", 
+    "Pancreas", 
+    "Intestines", 
+    "Corneas", 
+    "Skin", 
+    "Bone", 
+    "Heart Valves"
   ];
+
+  // Living donor organs
+  const livingDonorOrgans = [
+    "Kidney",
+    "Segment of the Liver"
+  ];
+
+  // Get available organs based on donation type
+  const getAvailableOrgans = () => {
+    if (formData.donationType === "living") {
+      return livingDonorOrgans;
+    } else if (formData.donationType === "deceased") {
+      return allOrganOptions;
+    }
+    return [];
+  };
+
+  const organOptions = getAvailableOrgans();
 
   useEffect(() => {
     // Redirect to dashboard if donor already has an application
@@ -68,6 +97,15 @@ const DonorRegistration = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!formData.donationType) {
+      toast({
+        title: "Donation Type Required",
+        description: "Please select when you wish to donate.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!formData.consent) {
       toast({
         title: "Consent Required",
@@ -116,6 +154,7 @@ const DonorRegistration = () => {
           city: formData.city,
           state: formData.state,
           country: formData.country,
+          donation_type: formData.donationType,
           consent: formData.consent
         })
       });
@@ -148,6 +187,14 @@ const DonorRegistration = () => {
       organs: prev.organs.includes(organ)
         ? prev.organs.filter(o => o !== organ)
         : [...prev.organs, organ]
+    }));
+  };
+
+  const handleDonationTypeChange = (type: "living" | "deceased") => {
+    setFormData(prev => ({
+      ...prev,
+      donationType: type,
+      organs: [] // Clear previously selected organs when type changes
     }));
   };
 
@@ -205,10 +252,94 @@ const DonorRegistration = () => {
           {/* Registration Form */}
           <Card className="p-8 shadow-strong">
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Personal Information */}
+              {/* Donation Type Selection */}
               <div>
                 <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
                   <span className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-sm font-bold text-primary">1</span>
+                  When Would You Like to Donate? *
+                </h2>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Choose when you wish to donate your organs
+                </p>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <label
+                    className={`p-6 border-2 rounded-lg cursor-pointer transition-all ${
+                      formData.donationType === "living"
+                        ? "border-primary bg-primary/5 shadow-md"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                    data-testid="donation-type-living"
+                  >
+                    <input
+                      type="radio"
+                      name="donationType"
+                      value="living"
+                      checked={formData.donationType === "living"}
+                      onChange={() => handleDonationTypeChange("living")}
+                      className="sr-only"
+                    />
+                    <div className="flex items-start gap-3">
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 ${
+                        formData.donationType === "living" ? "border-primary" : "border-gray-300"
+                      }`}>
+                        {formData.donationType === "living" && (
+                          <div className="w-3 h-3 rounded-full bg-primary"></div>
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-semibold mb-1">While I'm Alive (Living Donor)</p>
+                        <p className="text-sm text-muted-foreground">
+                          Donate a kidney or segment of your liver while you're alive. This is a life-saving gift that allows you to see the immediate impact of your donation.
+                        </p>
+                        <p className="text-xs text-primary mt-2">
+                          Available organs: Kidney, Segment of the Liver
+                        </p>
+                      </div>
+                    </div>
+                  </label>
+
+                  <label
+                    className={`p-6 border-2 rounded-lg cursor-pointer transition-all ${
+                      formData.donationType === "deceased"
+                        ? "border-primary bg-primary/5 shadow-md"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                    data-testid="donation-type-deceased"
+                  >
+                    <input
+                      type="radio"
+                      name="donationType"
+                      value="deceased"
+                      checked={formData.donationType === "deceased"}
+                      onChange={() => handleDonationTypeChange("deceased")}
+                      className="sr-only"
+                    />
+                    <div className="flex items-start gap-3">
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 ${
+                        formData.donationType === "deceased" ? "border-primary" : "border-gray-300"
+                      }`}>
+                        {formData.donationType === "deceased" && (
+                          <div className="w-3 h-3 rounded-full bg-primary"></div>
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-semibold mb-1">After My Death (Deceased Donor)</p>
+                        <p className="text-sm text-muted-foreground">
+                          Donate multiple organs and tissues after death. One deceased donor can save up to 8 lives and enhance many more through tissue donation.
+                        </p>
+                        <p className="text-xs text-primary mt-2">
+                          Available organs: All organs and tissues
+                        </p>
+                      </div>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* Personal Information */}
+              <div>
+                <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                  <span className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-sm font-bold text-primary">2</span>
                   Personal Information
                 </h2>
                 <div className="grid md:grid-cols-2 gap-4">
@@ -260,7 +391,7 @@ const DonorRegistration = () => {
               {/* Medical Information */}
               <div>
                 <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                  <span className="w-8 h-8 bg-secondary/10 rounded-full flex items-center justify-center text-sm font-bold text-secondary">2</span>
+                  <span className="w-8 h-8 bg-secondary/10 rounded-full flex items-center justify-center text-sm font-bold text-secondary">3</span>
                   Medical Information
                 </h2>
                 <div>
@@ -288,7 +419,7 @@ const DonorRegistration = () => {
               {/* Location Information */}
               <div>
                 <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                  <span className="w-8 h-8 bg-secondary/10 rounded-full flex items-center justify-center text-sm font-bold text-secondary">3</span>
+                  <span className="w-8 h-8 bg-secondary/10 rounded-full flex items-center justify-center text-sm font-bold text-secondary">4</span>
                   Location Information
                 </h2>
                 <div className="grid md:grid-cols-3 gap-4">
@@ -325,39 +456,51 @@ const DonorRegistration = () => {
               {/* Organ Selection */}
               <div>
                 <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                  <span className="w-8 h-8 bg-accent/10 rounded-full flex items-center justify-center text-sm font-bold text-accent">4</span>
+                  <span className="w-8 h-8 bg-accent/10 rounded-full flex items-center justify-center text-sm font-bold text-accent">5</span>
                   Organs to Donate *
                 </h2>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Select the organs you wish to donate (multiple selection allowed)
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                  {organOptions.map((organ) => (
-                    <label
-                      key={organ}
-                      className={`p-3 border rounded-lg cursor-pointer transition-smooth ${
-                        formData.organs.includes(organ)
-                          ? "border-primary bg-primary/10"
-                          : "border-border hover:border-primary/50"
-                      }`}
-                      data-testid={`organ-${organ.toLowerCase()}`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <Checkbox 
-                          checked={formData.organs.includes(organ)}
-                          onCheckedChange={() => toggleOrgan(organ)}
-                        />
-                        <span className="text-sm font-medium select-none">{organ}</span>
-                      </div>
-                    </label>
-                  ))}
-                </div>
+                {formData.donationType ? (
+                  <>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {formData.donationType === "living" 
+                        ? "Select organs available for living donation (multiple selection allowed)"
+                        : "Select the organs you wish to donate (multiple selection allowed)"}
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                      {organOptions.map((organ) => (
+                        <label
+                          key={organ}
+                          className={`p-3 border rounded-lg cursor-pointer transition-smooth ${
+                            formData.organs.includes(organ)
+                              ? "border-primary bg-primary/10"
+                              : "border-border hover:border-primary/50"
+                          }`}
+                          data-testid={`organ-${organ.toLowerCase().replace(/\s+/g, '-')}`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Checkbox 
+                              checked={formData.organs.includes(organ)}
+                              onCheckedChange={() => toggleOrgan(organ)}
+                            />
+                            <span className="text-sm font-medium select-none">{organ}</span>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="p-8 border-2 border-dashed rounded-lg text-center">
+                    <p className="text-muted-foreground">
+                      Please select a donation type above to view available organs
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Consent */}
               <div>
                 <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                  <span className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-sm font-bold text-primary">5</span>
+                  <span className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-sm font-bold text-primary">6</span>
                   Consent & Agreement
                 </h2>
                 <Card className="p-4 bg-muted/50">
@@ -369,19 +512,43 @@ const DonorRegistration = () => {
                     />
                     <div className="space-y-2">
                       <Label htmlFor="consent" className="cursor-pointer">
-                        I consent to organ donation after my death *
+                        {formData.donationType === "living" 
+                          ? "I consent to organ donation while I'm alive *"
+                          : formData.donationType === "deceased"
+                          ? "I consent to organ donation after my death *"
+                          : "I consent to organ donation *"}
                       </Label>
                       <p className="text-xs text-muted-foreground">
-                        By checking this box, I voluntarily agree to donate my organs after death. I understand that
-                        this decision is legally binding and my family will be notified. I have read and understood the{" "}
-                        <a href="#" className="text-primary hover:underline">
-                          donation process
-                        </a>{" "}
-                        and{" "}
-                        <a href="#" className="text-primary hover:underline">
-                          legal framework
-                        </a>
-                        .
+                        {formData.donationType === "living" ? (
+                          <>
+                            By checking this box, I voluntarily agree to donate organs while alive. I understand the medical procedures involved and that I will undergo thorough medical evaluation. I have read and understood the{" "}
+                            <a href="#" className="text-primary hover:underline">
+                              living donation process
+                            </a>{" "}
+                            and{" "}
+                            <a href="#" className="text-primary hover:underline">
+                              medical requirements
+                            </a>
+                            .
+                          </>
+                        ) : formData.donationType === "deceased" ? (
+                          <>
+                            By checking this box, I voluntarily agree to donate my organs after death. I understand that
+                            this decision is legally binding and my family will be notified. I have read and understood the{" "}
+                            <a href="#" className="text-primary hover:underline">
+                              donation process
+                            </a>{" "}
+                            and{" "}
+                            <a href="#" className="text-primary hover:underline">
+                              legal framework
+                            </a>
+                            .
+                          </>
+                        ) : (
+                          <>
+                            By checking this box, I voluntarily agree to donate my organs. Please select a donation type above.
+                          </>
+                        )}
                       </p>
                     </div>
                   </div>
@@ -439,7 +606,7 @@ const DonorRegistration = () => {
                 </li>
                 <li className="flex gap-2">
                   <span className="text-secondary">•</span>
-                  Age limit? 18-65 years
+                  Age limit? 18-65 years for most donations
                 </li>
                 <li className="flex gap-2">
                   <span className="text-secondary">•</span>
@@ -448,6 +615,10 @@ const DonorRegistration = () => {
                 <li className="flex gap-2">
                   <span className="text-secondary">•</span>
                   Cost involved? Completely free
+                </li>
+                <li className="flex gap-2">
+                  <span className="text-secondary">•</span>
+                  Living vs Deceased? Choose what's right for you
                 </li>
               </ul>
             </Card>

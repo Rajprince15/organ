@@ -37,6 +37,7 @@ interface DonationApplication {
   date_of_birth: string;
   blood_group: string;
   organs: string[];
+  donation_type?: "living" | "deceased";
   city?: string;
   state?: string;
   country?: string;
@@ -83,6 +84,7 @@ const DonorDashboard = () => {
     date_of_birth: "",
     blood_group: "",
     organs: [] as string[],
+    donation_type: "" as "living" | "deceased" | "",
     city: "",
     state: "",
     country: "",
@@ -207,6 +209,7 @@ const DonorDashboard = () => {
             date_of_birth: data.date_of_birth,
             blood_group: data.blood_group,
             organs: data.organs,
+            donation_type: data.donation_type || "",
             city: data.city || "",
             state: data.state || "",
             country: data.country || "",
@@ -886,6 +889,7 @@ const DonorDashboard = () => {
                         date_of_birth: application.date_of_birth,
                         blood_group: application.blood_group,
                         organs: application.organs,
+                        donation_type: application.donation_type || "",
                         city: application.city || "",
                         state: application.state || "",
                         country: application.country || "",

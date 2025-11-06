@@ -60,6 +60,7 @@ class DonationApplication(BaseModel):
     date_of_birth: str
     blood_group: str
     organs: list[str]
+    donation_type: Optional[Literal["living", "deceased"]] = None
     consent: bool
     city: Optional[str] = None
     state: Optional[str] = None
@@ -81,6 +82,7 @@ class DonationApplicationCreate(BaseModel):
     date_of_birth: str
     blood_group: str
     organs: list[str]
+    donation_type: Optional[Literal["living", "deceased"]] = None
     consent: bool
     city: Optional[str] = None
     state: Optional[str] = None
@@ -93,6 +95,7 @@ class DonationApplicationUpdate(BaseModel):
     date_of_birth: Optional[str] = None
     blood_group: Optional[str] = None
     organs: Optional[list[str]] = None
+    donation_type: Optional[Literal["living", "deceased"]] = None
     consent: Optional[bool] = None
     city: Optional[str] = None
     state: Optional[str] = None
