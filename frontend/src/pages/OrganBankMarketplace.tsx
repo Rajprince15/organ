@@ -56,7 +56,7 @@ const STATUS_OPTIONS = [
 ];
 
 export default function OrganBankMarketplace() {
-  const { user, token } = useAuth();
+  const { user, token, isLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   
@@ -71,12 +71,14 @@ export default function OrganBankMarketplace() {
   });
 
   useEffect(() => {
+    if (isLoading) return;
+    
     if (!user || user.role !== "hospital") {
       navigate("/");
       return;
     }
     fetchMarketplace();
-  }, [user, navigate]);
+  }, [user, navigate, isLoading]);
 
   const fetchMarketplace = async () => {
     setLoading(true);
@@ -132,7 +134,7 @@ export default function OrganBankMarketplace() {
     return acc;
   }, {} as Record<string, OrganBankEntry[]>);
 
-  if (loading) {
+  if (isLoading || loading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navigation />

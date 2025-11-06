@@ -78,7 +78,7 @@ const STATUS_OPTIONS = [
 ];
 
 export default function OrganInventory() {
-  const { user, token } = useAuth();
+  const { user, token, isLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   
@@ -97,6 +97,8 @@ export default function OrganInventory() {
   });
 
   useEffect(() => {
+    if (isLoading) return;
+    
     if (!user || user.role !== "admin") {
       navigate("/");
       return;
@@ -104,7 +106,7 @@ export default function OrganInventory() {
     fetchStats();
     fetchHospitals();
     fetchInventory();
-  }, [user, navigate]);
+  }, [user, navigate, isLoading]);
 
   const fetchStats = async () => {
     try {
@@ -223,7 +225,7 @@ export default function OrganInventory() {
     ) : null;
   };
 
-  if (loading && !stats) {
+  if (isLoading || (loading && !stats)) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navigation />
