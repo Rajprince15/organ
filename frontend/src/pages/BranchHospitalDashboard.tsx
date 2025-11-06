@@ -418,7 +418,8 @@ export default function BranchHospitalDashboard() {
                                 </div>
                               </div>
 
-                              {donor.eligibility_report_url && (
+                              {donor.eligibility_report_url && 
+                               (donor.checkup_status === 'eligible' || donor.checkup_status === 'not_eligible') && (
                                 <div className="mt-3">
                                   <a
                                     href={`${import.meta.env.VITE_API_URL}${donor.eligibility_report_url}`}

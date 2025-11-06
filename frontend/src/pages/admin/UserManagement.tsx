@@ -668,7 +668,8 @@ export default function UserManagement() {
                   </div>
 
                   {/* Eligibility Report */}
-                  {donorDetails.eligibility_report_url && (
+                  {donorDetails.eligibility_report_url && 
+                   (donorDetails.checkup_status === "eligible" || donorDetails.checkup_status === "not_eligible") && (
                     <div>
                       <h3 className="font-semibold mb-3">Eligibility Report</h3>
                       <Button

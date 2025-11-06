@@ -382,7 +382,8 @@ export default function DonationApplications() {
                             <Badge className={getCheckupStatusBadge(app.checkup_status)}>
                               {app.checkup_status.replace("_", " ").toUpperCase()}
                             </Badge>
-                            {app.eligibility_report_url && (
+                            {app.eligibility_report_url && 
+                             (app.checkup_status === "eligible" || app.checkup_status === "not_eligible") && (
                               <Badge variant="outline" className="bg-blue-50">
                                 Report Available
                               </Badge>
@@ -400,7 +401,8 @@ export default function DonationApplications() {
                             <Eye className="h-4 w-4 mr-2" />
                             View Details
                           </Button>
-                          {app.eligibility_report_url && (
+                          {app.eligibility_report_url && 
+                           (app.checkup_status === "eligible" || app.checkup_status === "not_eligible") && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -499,7 +501,8 @@ export default function DonationApplications() {
               </div>
 
               {/* Eligibility Report */}
-              {selectedDonor.eligibility_report_url && (
+              {selectedDonor.eligibility_report_url && 
+               (selectedDonor.checkup_status === "eligible" || selectedDonor.checkup_status === "not_eligible") && (
                 <div>
                   <h3 className="font-semibold mb-3">Eligibility Report</h3>
                   <Button

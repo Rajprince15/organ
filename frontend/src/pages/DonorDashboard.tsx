@@ -569,6 +569,10 @@ const DonorDashboard = () => {
                     {application.eligibility_report_url && 
                      (application.checkup_status === "eligible" || application.checkup_status === "not_eligible")
                       ? 'Report available - View and download your eligibility report'
+                      : application.checkup_status === "pending_checkup"
+                      ? 'Your checkup reports will appear here once checkup is completed'
+                      : application.checkup_status === "completed"
+                      ? 'Your report is being reviewed and will be available soon'
                       : 'Your checkup reports will appear here once checkup is completed'}
                   </p>
                 </div>
