@@ -597,7 +597,8 @@ def seed_mock_data(db: MockDatabase):
             "country": "USA",
             "consent": True,
             "status": "approved",
-            "checkup_status": "pending_checkup",
+            "checkup_status": "eligible",
+            "eligibility_report_url": "/api/uploads/reports/donor_8_eligibility_report.pdf",
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow()
         },
@@ -616,6 +617,8 @@ def seed_mock_data(db: MockDatabase):
             "country": "USA",
             "consent": True,
             "status": "approved",
+            "checkup_status": "eligible",
+            "eligibility_report_url": "/api/uploads/reports/donor_9_eligibility_report.pdf",
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow()
         },
@@ -634,6 +637,8 @@ def seed_mock_data(db: MockDatabase):
             "country": "USA",
             "consent": True,
             "status": "approved",
+            "checkup_status": "eligible",
+            "eligibility_report_url": "/api/uploads/reports/donor_10_eligibility_report.pdf",
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow()
         },
@@ -652,6 +657,8 @@ def seed_mock_data(db: MockDatabase):
             "country": "USA",
             "consent": True,
             "status": "approved",
+            "checkup_status": "eligible",
+            "eligibility_report_url": "/api/uploads/reports/donor_11_eligibility_report.pdf",
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow()
         },
@@ -670,6 +677,8 @@ def seed_mock_data(db: MockDatabase):
             "country": "USA",
             "consent": True,
             "status": "approved",
+            "checkup_status": "eligible",
+            "eligibility_report_url": "/api/uploads/reports/donor_12_eligibility_report.pdf",
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow()
         },
@@ -688,6 +697,8 @@ def seed_mock_data(db: MockDatabase):
             "country": "USA",
             "consent": True,
             "status": "approved",
+            "checkup_status": "eligible",
+            "eligibility_report_url": "/api/uploads/reports/donor_13_eligibility_report.pdf",
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow()
         },
@@ -706,6 +717,8 @@ def seed_mock_data(db: MockDatabase):
             "country": "USA",
             "consent": True,
             "status": "approved",
+            "checkup_status": "eligible",
+            "eligibility_report_url": "/api/uploads/reports/donor_14_eligibility_report.pdf",
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow()
         },
@@ -724,6 +737,8 @@ def seed_mock_data(db: MockDatabase):
             "country": "USA",
             "consent": True,
             "status": "approved",
+            "checkup_status": "eligible",
+            "eligibility_report_url": "/api/uploads/reports/donor_15_eligibility_report.pdf",
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow()
         }

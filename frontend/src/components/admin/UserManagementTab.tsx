@@ -119,6 +119,9 @@ export const UserManagementTab = ({ token }: UserManagementTabProps) => {
       if (response.ok) {
         toast({ title: `User ${!currentStatus ? 'activated' : 'deactivated'} successfully` });
         fetchUsers();
+      } else {
+        const errorData = await response.json();
+        toast({ title: errorData.detail || "Failed to update user", variant: "destructive" });
       }
     } catch (error) {
       toast({ title: "Failed to update user", variant: "destructive" });

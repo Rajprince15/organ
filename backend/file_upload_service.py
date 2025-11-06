@@ -123,8 +123,8 @@ class FileUploadService:
                 content = await file.read()
                 f.write(content)
             
-            # Generate URL (relative path for serving)
-            file_url = f"/uploads/{folder}/{filename}"
+            # Generate URL (relative path for serving with /api prefix)
+            file_url = f"/api/uploads/{folder}/{filename}"
             
             logger.info(f"✅ File uploaded successfully: {file_path}")
             

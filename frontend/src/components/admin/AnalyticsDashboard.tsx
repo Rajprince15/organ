@@ -29,6 +29,9 @@ export const AnalyticsDashboard = ({ token }: AnalyticsDashboardProps) => {
       if (response.ok) {
         const data = await response.json();
         setAnalytics(data);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        toast({ title: errorData.detail || "Failed to fetch analytics", variant: "destructive" });
       }
     } catch (error) {
       toast({ title: "Failed to fetch analytics", variant: "destructive" });

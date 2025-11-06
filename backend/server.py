@@ -1382,17 +1382,12 @@ async def get_donation_applications_for_admin(
     page: int = 1,
     limit: int = 50
 ):
-    """Get donation applications that need admin review (pending or not eligible)"""
+    """Get all donation applications for admin review"""
     if current_user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     
-    # Get donations that are pending OR marked as not eligible
-    all_applications = await db.donation_applications.find({
-        "$or": [
-            {"status": "pending"},
-            {"checkup_status": "not_eligible"}
-        ]
-    }).sort("created_at", -1).to_list(10000)
+    # Get ALL donation applications (not just pending)
+    all_applications = await db.donation_applications.find({}).sort("created_at", -1).to_list(10000)
     
     # Pagination
     total = len(all_applications)
@@ -2542,7 +2537,7 @@ async def upload_eligibility_report(
     from file_upload_service import file_upload_service
     
     try:
-        file_url, file_path = await file_upload_service.upload_file(file, folder="eligibility_reports")
+        file_url, file_path = await file_upload_service.upload_file(file, folder="reports")
         
         # Update donor record with report URL
         await db.donation_applications.update_one(
