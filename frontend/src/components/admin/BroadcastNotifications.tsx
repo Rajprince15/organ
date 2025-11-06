@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
@@ -32,10 +33,16 @@ export const BroadcastNotifications = ({ token }: BroadcastNotificationsProps) =
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [targetRole, setTargetRole] = useState("all");
+  const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
 
   const handleSendNotification = async () => {
+    if (!title.trim()) {
+      toast({ title: "Please enter a title", variant: "destructive" });
+      return;
+    }
+    
     if (!message.trim()) {
       toast({ title: "Please enter a message", variant: "destructive" });
       return;
@@ -50,6 +57,7 @@ export const BroadcastNotifications = ({ token }: BroadcastNotificationsProps) =
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
+          title,
           message,
           target_role: targetRole === "all" ? null : targetRole
         })
@@ -61,11 +69,17 @@ export const BroadcastNotifications = ({ token }: BroadcastNotificationsProps) =
           title: "Notification sent successfully", 
           description: `Sent to ${data.sent_count} users` 
         });
+        setTitle("");
         setMessage("");
         setTargetRole("all");
         setOpen(false);
       } else {
-        toast({ title: "Failed to send notification", variant: "destructive" });
+        const errorData = await response.json().catch(() => ({}));
+        toast({ 
+          title: "Failed to send notification", 
+          description: errorData.detail || "Please try again",
+          variant: "destructive" 
+        });
       }
     } catch (error) {
       toast({ title: "Error sending notification", variant: "destructive" });
@@ -127,6 +141,16 @@ export const BroadcastNotifications = ({ token }: BroadcastNotificationsProps) =
                         <SelectItem value="admin">Admins Only</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="title">Title</Label>
+                    <Input
+                      id="title"
+                      placeholder="Enter notification title..."
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      data-testid="notification-title"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="message">Message</Label>

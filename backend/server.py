@@ -2914,7 +2914,6 @@ async def get_activity_logs_endpoint(
 async def get_audit_logs_endpoint(
     current_user: dict = Depends(get_current_user),
     limit: int = 100,
-    admin_id: Optional[str] = None,
     action: Optional[str] = None,
     target_type: Optional[str] = None
 ):
@@ -2925,7 +2924,6 @@ async def get_audit_logs_endpoint(
     logs = await get_audit_logs(
         db=db,
         limit=limit,
-        admin_id=admin_id,
         action=action,
         target_type=target_type
     )
@@ -2991,20 +2989,28 @@ async def get_user_activity_endpoint(
     
     return {"activities": activities}
 
+# Broadcast Request Model
+class BroadcastRequest(BaseModel):
+    title: str
+    message: str
+    target_role: Optional[str] = None
+
 # Send Broadcast Notification
 @api_router.post("/admin/broadcast-notification")
 async def broadcast_notification(
-    title: str,
-    message: str,
-    target_role: Optional[str] = None,  # donor, hospital, or None for all
+    request: BroadcastRequest,
     current_user: dict = Depends(get_current_user)
 ):
     """Send notification to all users or specific role"""
     if current_user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     
+    # Get admin user details
+    admin_user = await db.users.find_one({"id": current_user["id"]})
+    admin_name = admin_user.get("name", "Admin") if admin_user else "Admin"
+    
     # Get target users
-    query = {"role": target_role} if target_role else {}
+    query = {"role": request.target_role} if request.target_role else {}
     target_users = await db.users.find(query).to_list(10000)
     
     # Create notifications for each user
@@ -3013,8 +3019,8 @@ async def broadcast_notification(
         notification = Notification(
             user_id=user["id"],
             type="general",
-            title=title,
-            message=message
+            title=request.title,
+            message=request.message
         )
         await db.notifications.insert_one(notification.model_dump())
         notifications_created += 1
@@ -3023,15 +3029,15 @@ async def broadcast_notification(
     await create_audit_log(
         db=db,
         admin_id=current_user["id"],
-        admin_name=current_user["name"],
+        admin_name=admin_name,
         action="broadcast_notification",
         target_type="notification",
-        changes={"title": title, "target_role": target_role, "recipients": notifications_created}
+        changes={"title": request.title, "target_role": request.target_role, "recipients": notifications_created}
     )
     
     return {
         "message": "Broadcast notification sent successfully",
-        "recipients": notifications_created
+        "sent_count": notifications_created
     }
 
 # Platform Settings
