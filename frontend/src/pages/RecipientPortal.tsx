@@ -36,10 +36,10 @@ const RecipientPortal = () => {
   });
 
   useEffect(() => {
-    if (!user || user.role !== "hospital") {
+    if (!user || (user.role !== "hospital" && user.role !== "admin")) {
       toast({
         title: "Access Denied",
-        description: "Only hospitals can post requirements. Please login with a hospital account.",
+        description: "Only hospitals and admins can post requirements. Please login with a hospital or admin account.",
         variant: "destructive",
       });
       navigate("/login");

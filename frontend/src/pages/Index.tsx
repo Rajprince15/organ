@@ -47,12 +47,12 @@ const Index = () => {
               <div className="flex flex-col sm:flex-row gap-4">
                 {/* Show Register as Donor button only if user is not logged in or is a donor/admin */}
                 {(!user || user.role === 'donor' || user.role === 'admin') && (
-                  <Link to={user ? "/donate" : "/register"}>
+                  
                     <Button size="lg" className="w-full sm:w-auto bg-gradient-primary text-primary-foreground shadow-medium hover:shadow-glow transition-smooth">
                       {user ? "Donate Organs" : "Register as Donor"}
                       <ArrowRight className="ml-2 h-5 w-5" />
                     </Button>
-                  </Link>
+                  
                 )}
                 {/* Show Post Requirement button only if user is not logged in or is a hospital/admin */}
                 {(!user || user.role === 'hospital' || user.role === 'admin') && (

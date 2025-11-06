@@ -116,24 +116,6 @@ const Navigation = () => {
                   </Link>
                 )}
                 
-                {/* Show Donate button only for donors and admins */}
-                {(user.role === 'donor' || user.role === 'admin') && (
-                  <Link to="/donate">
-                    <Button variant="outline" className="border-primary text-primary hover:bg-primary hover:text-primary-foreground transition-smooth">
-                      Donate
-                    </Button>
-                  </Link>
-                )}
-                
-                {/* Show Post Requirement button only for hospitals and admins */}
-                {(user.role === 'hospital' || user.role === 'admin') && (
-                  <Link to="/recipient-portal">
-                    <Button className="bg-gradient-primary text-primary-foreground shadow-medium hover:shadow-glow transition-smooth">
-                      Post Requirement
-                    </Button>
-                  </Link>
-                )}
-                
                 <Button
                   variant="outline"
                   size="icon"
@@ -237,20 +219,6 @@ const Navigation = () => {
                         <Button variant="outline" className="w-full border-secondary text-secondary hover:bg-secondary hover:text-secondary-foreground">
                           <User className="h-4 w-4 mr-2" />
                           My Dashboard
-                        </Button>
-                      </Link>
-                    )}
-                    {(user.role === 'donor' || user.role === 'admin') && (
-                      <Link to="/donate" onClick={() => setIsOpen(false)}>
-                        <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary hover:text-primary-foreground">
-                          Donate
-                        </Button>
-                      </Link>
-                    )}
-                    {(user.role === 'hospital' || user.role === 'admin') && (
-                      <Link to="/recipient-portal" onClick={() => setIsOpen(false)}>
-                        <Button className="w-full bg-gradient-primary text-primary-foreground shadow-medium">
-                          Post Requirement
                         </Button>
                       </Link>
                     )}

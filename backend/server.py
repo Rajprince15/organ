@@ -388,8 +388,8 @@ async def create_hospital_requirement(
     current_user: dict = Depends(get_current_user)
 ):
     """Create a new hospital requirement"""
-    if current_user.get("role") != "hospital":
-        raise HTTPException(status_code=403, detail="Only hospitals can create requirements")
+    if current_user.get("role") not in ["hospital", "admin"]:
+        raise HTTPException(status_code=403, detail="Only hospitals and admins can create requirements")
     
     # Create new requirement
     req_dict = requirement.model_dump()
@@ -437,11 +437,16 @@ async def create_hospital_requirement(
 async def get_my_hospital_requirements(
     current_user: dict = Depends(get_current_user)
 ):
-    """Get all requirements posted by the current hospital"""
-    if current_user.get("role") != "hospital":
-        raise HTTPException(status_code=403, detail="Only hospitals can access requirements")
+    """Get all requirements posted by the current hospital or admin"""
+    if current_user.get("role") not in ["hospital", "admin"]:
+        raise HTTPException(status_code=403, detail="Only hospitals and admins can access requirements")
     
-    requirements = await db.hospital_requirements.find({"hospital_id": current_user["id"]}).to_list(1000)
+    # Admins can see all requirements, hospitals see only their own
+    if current_user.get("role") == "admin":
+        requirements = await db.hospital_requirements.find({}).to_list(1000)
+    else:
+        requirements = await db.hospital_requirements.find({"hospital_id": current_user["id"]}).to_list(1000)
+    
     return [HospitalRequirement(**req) for req in requirements]
 
 @api_router.put("/hospital-requirements/{requirement_id}", response_model=HospitalRequirement)
@@ -451,11 +456,16 @@ async def update_hospital_requirement(
     current_user: dict = Depends(get_current_user)
 ):
     """Update hospital requirement"""
-    if current_user.get("role") != "hospital":
-        raise HTTPException(status_code=403, detail="Only hospitals can update requirements")
+    if current_user.get("role") not in ["hospital", "admin"]:
+        raise HTTPException(status_code=403, detail="Only hospitals and admins can update requirements")
     
-    # Check if requirement exists and belongs to hospital
-    requirement = await db.hospital_requirements.find_one({"id": requirement_id, "hospital_id": current_user["id"]})
+    # Check if requirement exists
+    # Admins can update any requirement, hospitals can only update their own
+    if current_user.get("role") == "admin":
+        requirement = await db.hospital_requirements.find_one({"id": requirement_id})
+    else:
+        requirement = await db.hospital_requirements.find_one({"id": requirement_id, "hospital_id": current_user["id"]})
+    
     if not requirement:
         raise HTTPException(status_code=404, detail="Requirement not found")
     
@@ -481,11 +491,16 @@ async def delete_hospital_requirement(
     current_user: dict = Depends(get_current_user)
 ):
     """Delete hospital requirement"""
-    if current_user.get("role") != "hospital":
-        raise HTTPException(status_code=403, detail="Only hospitals can delete requirements")
+    if current_user.get("role") not in ["hospital", "admin"]:
+        raise HTTPException(status_code=403, detail="Only hospitals and admins can delete requirements")
     
-    # Check if requirement exists and belongs to hospital
-    requirement = await db.hospital_requirements.find_one({"id": requirement_id, "hospital_id": current_user["id"]})
+    # Check if requirement exists
+    # Admins can delete any requirement, hospitals can only delete their own
+    if current_user.get("role") == "admin":
+        requirement = await db.hospital_requirements.find_one({"id": requirement_id})
+    else:
+        requirement = await db.hospital_requirements.find_one({"id": requirement_id, "hospital_id": current_user["id"]})
+    
     if not requirement:
         raise HTTPException(status_code=404, detail="Requirement not found")
     
