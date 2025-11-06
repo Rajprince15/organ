@@ -1829,6 +1829,169 @@ For urgent medical emergencies, contact your local hospital directly. This platf
         db.donation_applications._data[donation_id]["updated_at"] = datetime.utcnow()
 
 
+    # ============================================
+    # ORGAN BANK SYSTEM SEED DATA
+    # ============================================
+    
+    # Update hospitals to have is_sharing_organ_bank field
+    db.users._data[hospital_id]["is_sharing_organ_bank"] = True
+    db.users._data[hospital_id_2]["is_sharing_organ_bank"] = True
+    
+    # Create sample organ bank entries
+    sample_organ_entries = [
+        # City Hospital organs (sharing enabled)
+        {
+            "id": str(uuid.uuid4()),
+            "hospital_id": hospital_id,
+            "hospital_name": "City Hospital",
+            "organ_type": "Kidney",
+            "blood_type": "O+",
+            "quantity": 2,
+            "status": "available",
+            "notes": "Fresh donation, excellent condition",
+            "created_at": datetime.utcnow() - timedelta(days=2),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "hospital_id": hospital_id,
+            "hospital_name": "City Hospital",
+            "organ_type": "Liver",
+            "blood_type": "A+",
+            "quantity": 1,
+            "status": "available",
+            "notes": "Available for immediate transplant",
+            "created_at": datetime.utcnow() - timedelta(days=1),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "hospital_id": hospital_id,
+            "hospital_name": "City Hospital",
+            "organ_type": "Heart",
+            "blood_type": "AB+",
+            "quantity": 1,
+            "status": "reserved",
+            "notes": "Reserved for scheduled surgery next week",
+            "created_at": datetime.utcnow() - timedelta(days=3),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "hospital_id": hospital_id,
+            "hospital_name": "City Hospital",
+            "organ_type": "Cornea",
+            "blood_type": "O-",
+            "quantity": 4,
+            "status": "available",
+            "notes": "Multiple corneas available",
+            "created_at": datetime.utcnow() - timedelta(hours=12),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "hospital_id": hospital_id,
+            "hospital_name": "City Hospital",
+            "organ_type": "Pancreas",
+            "blood_type": "B+",
+            "quantity": 1,
+            "status": "in_transit",
+            "notes": "Being transported from donor location",
+            "created_at": datetime.utcnow() - timedelta(hours=6),
+            "updated_at": datetime.utcnow()
+        },
+        # Metro General Hospital organs (sharing enabled)
+        {
+            "id": str(uuid.uuid4()),
+            "hospital_id": hospital_id_2,
+            "hospital_name": "Metro General Hospital",
+            "organ_type": "Kidney",
+            "blood_type": "A-",
+            "quantity": 1,
+            "status": "available",
+            "notes": "Ideal for Type A recipients",
+            "created_at": datetime.utcnow() - timedelta(days=1),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "hospital_id": hospital_id_2,
+            "hospital_name": "Metro General Hospital",
+            "organ_type": "Lung",
+            "blood_type": "O+",
+            "quantity": 2,
+            "status": "available",
+            "notes": "Both lungs from same donor, excellent match",
+            "created_at": datetime.utcnow() - timedelta(hours=18),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "hospital_id": hospital_id_2,
+            "hospital_name": "Metro General Hospital",
+            "organ_type": "Liver",
+            "blood_type": "B-",
+            "quantity": 1,
+            "status": "allocated",
+            "notes": "Allocated to recipient, surgery scheduled",
+            "created_at": datetime.utcnow() - timedelta(days=4),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "hospital_id": hospital_id_2,
+            "hospital_name": "Metro General Hospital",
+            "organ_type": "Heart",
+            "blood_type": "O+",
+            "quantity": 1,
+            "status": "available",
+            "notes": "Universal donor, excellent condition",
+            "created_at": datetime.utcnow() - timedelta(hours=8),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "hospital_id": hospital_id_2,
+            "hospital_name": "Metro General Hospital",
+            "organ_type": "Kidney",
+            "blood_type": "AB-",
+            "quantity": 2,
+            "status": "available",
+            "notes": "Pair of kidneys, rare blood type",
+            "created_at": datetime.utcnow() - timedelta(days=1),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "hospital_id": hospital_id_2,
+            "hospital_name": "Metro General Hospital",
+            "organ_type": "Skin",
+            "blood_type": "A+",
+            "quantity": 10,
+            "status": "available",
+            "notes": "Tissue grafts available for burn victims",
+            "created_at": datetime.utcnow() - timedelta(hours=24),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "hospital_id": hospital_id_2,
+            "hospital_name": "Metro General Hospital",
+            "organ_type": "Bone",
+            "blood_type": "O-",
+            "quantity": 5,
+            "status": "available",
+            "notes": "Bone tissue for reconstructive surgery",
+            "created_at": datetime.utcnow() - timedelta(hours=36),
+            "updated_at": datetime.utcnow()
+        }
+    ]
+    
+    # Insert organ bank entries
+    for entry in sample_organ_entries:
+        entry_id = entry['id']
+        db.organ_bank_entries._data[entry_id] = entry.copy()
+
     print("Mock database seeded with test users:")
     print("   - donor@organconnect.com / donor123 (with donation application)")
     print("   - hospital@organconnect.com / hospital123 (with requirements)")
@@ -1847,5 +2010,6 @@ For urgent medical emergencies, contact your local hospital directly. This platf
     print(f"   - Created {len(sample_faqs)} FAQs (Phase 3B)")
     print(f"   - Created {len(sample_help_docs)} help documents (Phase 3B)")
     print(f"   - Created 1 branch hospital with 5 assigned donors")
+    print(f"   - Created {len(sample_organ_entries)} organ bank entries from 2 hospitals (both sharing)")
     print("   - Branch Hospital Account:")
     print("     * branch.downtown@organconnect.com / branch123")
