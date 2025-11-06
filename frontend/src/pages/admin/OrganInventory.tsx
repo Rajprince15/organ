@@ -402,7 +402,7 @@ export default function OrganInventory() {
                       <SelectValue placeholder="All hospitals" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All hospitals</SelectItem>
+                     
                       {hospitals.filter(h => h.is_sharing).map((hospital) => (
                         <SelectItem key={hospital.id} value={hospital.id}>
                           {hospital.name} ({hospital.organ_entries_count})
@@ -422,7 +422,7 @@ export default function OrganInventory() {
                       <SelectValue placeholder="All types" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All types</SelectItem>
+                      
                       {BLOOD_TYPES.map((type) => (
                         <SelectItem key={type} value={type}>{type}</SelectItem>
                       ))}
@@ -440,7 +440,7 @@ export default function OrganInventory() {
                       <SelectValue placeholder="All statuses" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All statuses</SelectItem>
+             
                       {STATUS_OPTIONS.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
                           {option.label}

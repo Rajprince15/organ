@@ -230,7 +230,7 @@ export default function OrganBankMarketplace() {
                       <SelectValue placeholder="All blood types" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All blood types</SelectItem>
+            
                       {BLOOD_TYPES.map((type) => (
                         <SelectItem key={type} value={type}>{type}</SelectItem>
                       ))}
@@ -248,7 +248,7 @@ export default function OrganBankMarketplace() {
                       <SelectValue placeholder="All statuses" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All statuses</SelectItem>
+                      
                       {STATUS_OPTIONS.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
                           {option.label}
