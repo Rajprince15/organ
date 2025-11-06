@@ -55,7 +55,7 @@ export const DonationApplicationsTab = ({ token }: DonationApplicationsTabProps)
   const [applications, setApplications] = useState<DonationApplication[]>([]);
   const [filteredApplications, setFilteredApplications] = useState<DonationApplication[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState("pending");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [selectedApplications, setSelectedApplications] = useState<Set<string>>(new Set());
   const [showBulkApproveDialog, setShowBulkApproveDialog] = useState(false);
   const [showBulkRejectDialog, setShowBulkRejectDialog] = useState(false);
@@ -78,7 +78,11 @@ export const DonationApplicationsTab = ({ token }: DonationApplicationsTabProps)
       });
       if (response.ok) {
         const data = await response.json();
-        setApplications(data.applications);
+        // Filter to show only pending and not_eligible applications
+        const relevantApps = data.applications.filter((app: DonationApplication) => 
+          app.status === "pending" || app.checkup_status === "not_eligible"
+        );
+        setApplications(relevantApps);
       }
     } catch (error) {
       toast({ title: "Failed to fetch applications", variant: "destructive" });
@@ -90,8 +94,10 @@ export const DonationApplicationsTab = ({ token }: DonationApplicationsTabProps)
   const filterApplications = () => {
     if (statusFilter === "all") {
       setFilteredApplications(applications);
-    } else {
-      setFilteredApplications(applications.filter(app => app.status === statusFilter));
+    } else if (statusFilter === "pending") {
+      setFilteredApplications(applications.filter(app => app.status === "pending"));
+    } else if (statusFilter === "not_eligible") {
+      setFilteredApplications(applications.filter(app => app.checkup_status === "not_eligible"));
     }
   };
 
@@ -215,12 +221,9 @@ export const DonationApplicationsTab = ({ token }: DonationApplicationsTabProps)
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="approved">Approved</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="inactive">Inactive</SelectItem>
-            <SelectItem value="cancelled">Cancelled</SelectItem>
+            <SelectItem value="all">All Applications</SelectItem>
+            <SelectItem value="pending">Pending Only</SelectItem>
+            <SelectItem value="not_eligible">Not Eligible Only</SelectItem>
           </SelectContent>
         </Select>
 
@@ -354,7 +357,9 @@ export const DonationApplicationsTab = ({ token }: DonationApplicationsTabProps)
                   <p className="font-medium">{selectedApplication.assigned_branch_hospital_name}</p>
                 </div>
               )}
-              {selectedApplication.eligibility_report_url && (
+              {/* Show report only when checkup is completed or donor is eligible */}
+              {selectedApplication.eligibility_report_url && 
+               (selectedApplication.checkup_status === "completed" || selectedApplication.checkup_status === "eligible") && (
                 <div>
                   <p className="text-sm text-muted-foreground mb-2">Eligibility Report</p>
                   <Button

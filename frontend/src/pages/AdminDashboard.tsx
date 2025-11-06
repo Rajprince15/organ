@@ -133,14 +133,7 @@ export default function AdminDashboard() {
       route: "/admin/branch-hospitals",
       stat: "Manage Branch Accounts",
     },
-    {
-      title: "Matching Insights",
-      description: "Algorithm performance and match logs",
-      icon: GitCompare,
-      color: "from-orange-500 to-orange-600",
-      route: "/admin/matching",
-      stat: "View Match Analytics",
-    },
+    
     {
       title: "Support Management",
       description: "Handle tickets, FAQs, and help docs",
