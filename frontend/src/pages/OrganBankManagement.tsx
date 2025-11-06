@@ -70,11 +70,17 @@ export default function OrganBankManagement() {
   const [showForm, setShowForm] = useState(false);
   const [editingEntry, setEditingEntry] = useState<OrganBankEntry | null>(null);
   
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    organ_type: string;
+    blood_type: string;
+    quantity: number;
+    status: "available" | "reserved" | "in_transit" | "allocated" | "expired";
+    notes: string;
+  }>({
     organ_type: "",
     blood_type: "",
     quantity: 1,
-    status: "available" as const,
+    status: "available",
     notes: "",
   });
 
@@ -434,7 +440,7 @@ export default function OrganBankManagement() {
                       <Label htmlFor="status">Status *</Label>
                       <Select
                         value={formData.status}
-                        onValueChange={(value: any) => setFormData({ ...formData, status: value })}
+                        onValueChange={(value) => setFormData({ ...formData, status: value as "available" | "reserved" | "in_transit" | "allocated" | "expired" })}
                         required
                       >
                         <SelectTrigger data-testid="status-select">

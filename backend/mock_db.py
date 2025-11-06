@@ -49,8 +49,14 @@ class MockCollection:
                     match = False
                     break
             if match:
+                # Handle $set operator
                 if '$set' in update_dict:
                     doc.update(update_dict['$set'])
+                # Handle $inc operator (increment)
+                elif '$inc' in update_dict:
+                    for field, increment in update_dict['$inc'].items():
+                        doc[field] = doc.get(field, 0) + increment
+                # Direct update
                 else:
                     doc.update(update_dict)
                 doc['updated_at'] = datetime.utcnow()
@@ -1127,6 +1133,165 @@ def seed_mock_data(db: MockDatabase):
         resource_id = resource['id']
         db.resources._data[resource_id] = resource.copy()
     
+    # SET is_sharing_organ_bank flag for test hospitals
+    for hospital_user_id in [hospital_id, hospital_id_2]:
+        if hospital_user_id in db.users._data:
+            db.users._data[hospital_user_id]["is_sharing_organ_bank"] = True
+    
+    # Create sample organ bank entries
+    sample_organ_bank_entries = [
+        # Hospital 1 entries (City Hospital)
+        {
+            "id": str(uuid.uuid4()),
+            "hospital_id": hospital_id,
+            "hospital_name": "City Hospital",
+            "organ_type": "Heart",
+            "blood_type": "O+",
+            "quantity": 2,
+            "status": "available",
+            "notes": "Healthy donor hearts, well-preserved",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "hospital_id": hospital_id,
+            "hospital_name": "City Hospital",
+            "organ_type": "Kidney",
+            "blood_type": "A+",
+            "quantity": 3,
+            "status": "available",
+            "notes": "Excellent condition, ready for transplant",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "hospital_id": hospital_id,
+            "hospital_name": "City Hospital",
+            "organ_type": "Liver",
+            "blood_type": "B+",
+            "quantity": 1,
+            "status": "reserved",
+            "notes": "Reserved for priority patient",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "hospital_id": hospital_id,
+            "hospital_name": "City Hospital",
+            "organ_type": "Cornea",
+            "blood_type": "AB+",
+            "quantity": 5,
+            "status": "available",
+            "notes": "Multiple corneas available",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "hospital_id": hospital_id,
+            "hospital_name": "City Hospital",
+            "organ_type": "Lung",
+            "blood_type": "O-",
+            "quantity": 1,
+            "status": "in_transit",
+            "notes": "En route from donor hospital",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        # Hospital 2 entries (Metro General Hospital)
+        {
+            "id": str(uuid.uuid4()),
+            "hospital_id": hospital_id_2,
+            "hospital_name": "Metro General Hospital",
+            "organ_type": "Kidney",
+            "blood_type": "O+",
+            "quantity": 2,
+            "status": "available",
+            "notes": "Universal donor kidneys",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "hospital_id": hospital_id_2,
+            "hospital_name": "Metro General Hospital",
+            "organ_type": "Heart",
+            "blood_type": "A-",
+            "quantity": 1,
+            "status": "available",
+            "notes": "Young donor, excellent condition",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "hospital_id": hospital_id_2,
+            "hospital_name": "Metro General Hospital",
+            "organ_type": "Liver",
+            "blood_type": "AB-",
+            "quantity": 1,
+            "status": "allocated",
+            "notes": "Allocated to transplant patient",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "hospital_id": hospital_id_2,
+            "hospital_name": "Metro General Hospital",
+            "organ_type": "Pancreas",
+            "blood_type": "B-",
+            "quantity": 1,
+            "status": "available",
+            "notes": "Suitable for diabetic patients",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "hospital_id": hospital_id_2,
+            "hospital_name": "Metro General Hospital",
+            "organ_type": "Cornea",
+            "blood_type": "A+",
+            "quantity": 8,
+            "status": "available",
+            "notes": "High quality corneas from recent donors",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "hospital_id": hospital_id_2,
+            "hospital_name": "Metro General Hospital",
+            "organ_type": "Kidney",
+            "blood_type": "AB+",
+            "quantity": 1,
+            "status": "reserved",
+            "notes": "Reserved for matching recipient",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "hospital_id": hospital_id_2,
+            "hospital_name": "Metro General Hospital",
+            "organ_type": "Heart Valves",
+            "blood_type": "O+",
+            "quantity": 4,
+            "status": "available",
+            "notes": "Preserved heart valves for cardiac surgery",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        },
+    ]
+    
+    # Insert organ bank entries
+    for organ_entry in sample_organ_bank_entries:
+        entry_id = organ_entry['id']
+        db.organ_bank_entries._data[entry_id] = organ_entry.copy()
 
     # Create sample match logs for Phase 3A
     # First, let's capture requirement IDs for reference
