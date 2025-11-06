@@ -3803,12 +3803,14 @@ async def get_organ_bank_marketplace(
     if current_user.get("role") != "hospital":
         raise HTTPException(status_code=403, detail="Only hospitals can access organ marketplace")
     
-    # Get all hospitals that are sharing
-    sharing_hospitals = await db.users.find({
-        "role": "hospital",
-        "is_sharing_organ_bank": True,
-        "id": {"$ne": current_user["id"]}  # Exclude current hospital
-    }).to_list(1000)
+    # Get all hospitals - fetch all and filter in Python
+    all_hospitals = await db.users.find({"role": "hospital"}).to_list(1000)
+    
+    # Filter in Python: sharing hospitals excluding current user
+    sharing_hospitals = [
+        h for h in all_hospitals 
+        if h.get("is_sharing_organ_bank") == True and h.get("id") != current_user["id"]
+    ]
     
     if not sharing_hospitals:
         return {
@@ -3819,24 +3821,36 @@ async def get_organ_bank_marketplace(
     
     sharing_hospital_ids = [h["id"] for h in sharing_hospitals]
     
-    # Build filter
-    filter_dict = {"hospital_id": {"$in": sharing_hospital_ids}}
+    # Get ALL organ bank entries first
+    all_entries = await db.organ_bank_entries.find({}).to_list(10000)
     
-    if organ_type:
-        filter_dict["organ_type"] = {"$regex": organ_type, "$options": "i"}
+    # Filter in Python
+    filtered_entries = []
+    for entry in all_entries:
+        # Filter by hospital ID (must be in sharing hospitals)
+        if entry.get("hospital_id") not in sharing_hospital_ids:
+            continue
+        
+        # Filter by organ type (case-insensitive substring match)
+        if organ_type and organ_type.lower() not in entry.get("organ_type", "").lower():
+            continue
+        
+        # Filter by blood type (exact match)
+        if blood_type and entry.get("blood_type") != blood_type:
+            continue
+        
+        # Filter by status (exact match)
+        if status and entry.get("status") != status:
+            continue
+        
+        filtered_entries.append(entry)
     
-    if blood_type:
-        filter_dict["blood_type"] = blood_type
-    
-    if status:
-        filter_dict["status"] = status
-    
-    # Get all shared organ bank entries
-    entries = await db.organ_bank_entries.find(filter_dict).sort("created_at", -1).to_list(10000)
+    # Sort by created_at descending (most recent first)
+    filtered_entries.sort(key=lambda x: x.get("created_at", datetime.min), reverse=True)
     
     return {
-        "entries": [OrganBankEntry(**entry) for entry in entries],
-        "total": len(entries),
+        "entries": [OrganBankEntry(**entry) for entry in filtered_entries],
+        "total": len(filtered_entries),
         "sharing_hospitals_count": len(sharing_hospital_ids)
     }
 
@@ -3855,11 +3869,11 @@ async def get_organ_inventory(
     if current_user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     
-    # Get all hospitals that are sharing
-    sharing_hospitals = await db.users.find({
-        "role": "hospital",
-        "is_sharing_organ_bank": True
-    }).to_list(1000)
+    # Get all hospitals - fetch all and filter in Python
+    all_hospitals = await db.users.find({"role": "hospital"}).to_list(1000)
+    
+    # Filter in Python: only sharing hospitals
+    sharing_hospitals = [h for h in all_hospitals if h.get("is_sharing_organ_bank") == True]
     
     if not sharing_hospitals:
         return {
@@ -3873,29 +3887,43 @@ async def get_organ_inventory(
     
     sharing_hospital_ids = [h["id"] for h in sharing_hospitals]
     
-    # Build filter
-    filter_dict = {"hospital_id": {"$in": sharing_hospital_ids}}
+    # Get ALL organ bank entries first
+    all_entries = await db.organ_bank_entries.find({}).to_list(10000)
     
-    if organ_type:
-        filter_dict["organ_type"] = {"$regex": organ_type, "$options": "i"}
+    # Filter in Python
+    filtered_entries = []
+    for entry in all_entries:
+        # Filter by hospital ID (must be in sharing hospitals)
+        entry_hospital_id = entry.get("hospital_id")
+        if entry_hospital_id not in sharing_hospital_ids:
+            continue
+        
+        # Filter by specific hospital_id if provided
+        if hospital_id and entry_hospital_id != hospital_id:
+            continue
+        
+        # Filter by organ type (case-insensitive substring match)
+        if organ_type and organ_type.lower() not in entry.get("organ_type", "").lower():
+            continue
+        
+        # Filter by blood type (exact match)
+        if blood_type and entry.get("blood_type") != blood_type:
+            continue
+        
+        # Filter by status (exact match)
+        if status and entry.get("status") != status:
+            continue
+        
+        filtered_entries.append(entry)
     
-    if hospital_id:
-        filter_dict["hospital_id"] = hospital_id
-    
-    if blood_type:
-        filter_dict["blood_type"] = blood_type
-    
-    if status:
-        filter_dict["status"] = status
-    
-    # Get all entries
-    all_entries = await db.organ_bank_entries.find(filter_dict).sort("updated_at", -1).to_list(10000)
+    # Sort by updated_at descending (most recent first)
+    filtered_entries.sort(key=lambda x: x.get("updated_at", datetime.min), reverse=True)
     
     # Pagination
-    total = len(all_entries)
+    total = len(filtered_entries)
     start_idx = (page - 1) * limit
     end_idx = start_idx + limit
-    paginated_entries = all_entries[start_idx:end_idx]
+    paginated_entries = filtered_entries[start_idx:end_idx]
     
     return {
         "entries": [OrganBankEntry(**entry) for entry in paginated_entries],
@@ -3914,14 +3942,17 @@ async def get_organ_inventory_stats(
     if current_user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     
-    # Get all hospitals that are sharing
+    # Get all hospitals - fetch all and filter in Python
     all_hospitals = await db.users.find({"role": "hospital"}).to_list(1000)
+    
+    # Filter in Python: only sharing hospitals
     sharing_hospitals = [h for h in all_hospitals if h.get("is_sharing_organ_bank", False)]
     sharing_hospital_ids = [h["id"] for h in sharing_hospitals]
     
     if not sharing_hospital_ids:
         return {
             "total_organs": 0,
+            "total_entries": 0,
             "organs_by_type": {},
             "organs_by_blood_group": {},
             "organs_by_status": {},
@@ -3930,31 +3961,35 @@ async def get_organ_inventory_stats(
             "sharing_percentage": 0
         }
     
-    # Get all shared organ bank entries
-    all_entries = await db.organ_bank_entries.find({
-        "hospital_id": {"$in": sharing_hospital_ids}
-    }).to_list(10000)
+    # Get ALL organ bank entries first
+    all_organ_entries = await db.organ_bank_entries.find({}).to_list(10000)
+    
+    # Filter in Python: only entries from sharing hospitals
+    shared_entries = [
+        entry for entry in all_organ_entries 
+        if entry.get("hospital_id") in sharing_hospital_ids
+    ]
     
     # Calculate statistics
-    total_organs = sum(entry.get("quantity", 0) for entry in all_entries)
+    total_organs = sum(entry.get("quantity", 0) for entry in shared_entries)
     
     # Organs by type
     organs_by_type = {}
-    for entry in all_entries:
+    for entry in shared_entries:
         organ_type = entry.get("organ_type", "Unknown")
         quantity = entry.get("quantity", 0)
         organs_by_type[organ_type] = organs_by_type.get(organ_type, 0) + quantity
     
     # Organs by blood group
     organs_by_blood_group = {}
-    for entry in all_entries:
+    for entry in shared_entries:
         blood_type = entry.get("blood_type", "Unknown")
         quantity = entry.get("quantity", 0)
         organs_by_blood_group[blood_type] = organs_by_blood_group.get(blood_type, 0) + quantity
     
     # Organs by status
     organs_by_status = {}
-    for entry in all_entries:
+    for entry in shared_entries:
         status = entry.get("status", "unknown")
         quantity = entry.get("quantity", 0)
         organs_by_status[status] = organs_by_status.get(status, 0) + quantity
@@ -3963,7 +3998,7 @@ async def get_organ_inventory_stats(
     
     return {
         "total_organs": total_organs,
-        "total_entries": len(all_entries),
+        "total_entries": len(shared_entries),
         "organs_by_type": organs_by_type,
         "organs_by_blood_group": organs_by_blood_group,
         "organs_by_status": organs_by_status,
@@ -3984,34 +4019,48 @@ async def export_organ_inventory(
     if current_user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     
-    # Get all hospitals that are sharing
-    sharing_hospitals = await db.users.find({
-        "role": "hospital",
-        "is_sharing_organ_bank": True
-    }).to_list(1000)
+    # Get all hospitals - fetch all and filter in Python
+    all_hospitals = await db.users.find({"role": "hospital"}).to_list(1000)
+    
+    # Filter in Python: only sharing hospitals
+    sharing_hospitals = [h for h in all_hospitals if h.get("is_sharing_organ_bank") == True]
     
     if not sharing_hospitals:
         raise HTTPException(status_code=404, detail="No hospitals are currently sharing organ banks")
     
     sharing_hospital_ids = [h["id"] for h in sharing_hospitals]
     
-    # Build filter
-    filter_dict = {"hospital_id": {"$in": sharing_hospital_ids}}
+    # Get ALL organ bank entries first
+    all_organ_entries = await db.organ_bank_entries.find({}).to_list(10000)
     
-    if organ_type:
-        filter_dict["organ_type"] = {"$regex": organ_type, "$options": "i"}
+    # Filter in Python
+    filtered_entries = []
+    for entry in all_organ_entries:
+        # Filter by hospital ID (must be in sharing hospitals)
+        entry_hospital_id = entry.get("hospital_id")
+        if entry_hospital_id not in sharing_hospital_ids:
+            continue
+        
+        # Filter by specific hospital_id if provided
+        if hospital_id and entry_hospital_id != hospital_id:
+            continue
+        
+        # Filter by organ type (case-insensitive substring match)
+        if organ_type and organ_type.lower() not in entry.get("organ_type", "").lower():
+            continue
+        
+        # Filter by blood type (exact match)
+        if blood_type and entry.get("blood_type") != blood_type:
+            continue
+        
+        # Filter by status (exact match)
+        if status and entry.get("status") != status:
+            continue
+        
+        filtered_entries.append(entry)
     
-    if hospital_id:
-        filter_dict["hospital_id"] = hospital_id
-    
-    if blood_type:
-        filter_dict["blood_type"] = blood_type
-    
-    if status:
-        filter_dict["status"] = status
-    
-    # Get all entries
-    all_entries = await db.organ_bank_entries.find(filter_dict).sort("updated_at", -1).to_list(10000)
+    # Sort by updated_at descending (most recent first)
+    filtered_entries.sort(key=lambda x: x.get("updated_at", datetime.min), reverse=True)
     
     # Create CSV
     output = io.StringIO()
@@ -4024,7 +4073,7 @@ async def export_organ_inventory(
     ])
     
     # Write data
-    for entry in all_entries:
+    for entry in filtered_entries:
         writer.writerow([
             entry.get("hospital_name", ""),
             entry.get("organ_type", ""),
@@ -4055,15 +4104,20 @@ async def get_sharing_hospitals_list(
     # Get all hospitals
     all_hospitals = await db.users.find({"role": "hospital"}).to_list(1000)
     
+    # Get ALL organ bank entries once
+    all_organ_entries = await db.organ_bank_entries.find({}).to_list(10000)
+    
     result = []
     for hospital in all_hospitals:
         is_sharing = hospital.get("is_sharing_organ_bank", False)
         
-        # Count organ bank entries for this hospital
+        # Count organ bank entries for this hospital using Python filtering
         entry_count = 0
         if is_sharing:
-            entries = await db.organ_bank_entries.find({"hospital_id": hospital["id"]}).to_list(1000)
-            entry_count = len(entries)
+            entry_count = len([
+                entry for entry in all_organ_entries 
+                if entry.get("hospital_id") == hospital["id"]
+            ])
         
         result.append({
             "id": hospital["id"],
