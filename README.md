@@ -224,7 +224,7 @@ cd backend && pip install -r requirements.txt && cd ..
 Create `backend/.env`:
 
 ```env
-MONGO_URL=mongodb://localhost:27017
+MONGO_URL=""
 DB_NAME=organ_connect
 USE_MOCK_DB=true                # set to false to use real MongoDB
 JWT_SECRET=replace-with-a-strong-secret
